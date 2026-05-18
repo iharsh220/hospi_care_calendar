@@ -4,7 +4,7 @@ const { Event } = require('../models');
 const createEvent = async (req, res) => {
   try {
     const { event_name, description, event_type, event_date, assign_to } = req.body;
-
+    
     // Validate required fields
     if (!event_name || !event_type) {
       return res.status(400).json({
