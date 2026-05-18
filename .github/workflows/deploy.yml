@@ -22,7 +22,7 @@ jobs:
 
           script: |
             echo "=================================="
-            echo "Starting Deployment..."
+            echo "Starting Deployment...."
             echo "=================================="
 
             APP_DIR="/home/alembicdigilabs/Projects/Divisions/HospiCare/hospi_care_calendar"
