@@ -1,4 +1,4 @@
-name: Deploy to VPS
+name: Test SSH Connection
 
 on:
   push:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy Application
+      - name: Test VPS Connection
         uses: appleboy/ssh-action@v0.1.10
 
         with:
@@ -21,32 +21,7 @@ jobs:
           debug: true
 
           script: |
-            echo "=================================="
-            echo "Starting Deployment..."
-            echo "=================================="
-
-            APP_DIR="/home/alembicdigilabs/Projects/Divisions/HospiCare/hospi_care_calendar"
-
-            cd $APP_DIR
-
-            echo "Pull latest code..."
-            git pull origin main
-
-            echo "Install dependencies..."
-            npm install --production
-
-            echo "Restart PM2..."
-
-            pm2 describe hospi_care_calendar > /dev/null
-
-            if [ $? -eq 0 ]; then
-              pm2 restart hospi_care_calendar
-            else
-              pm2 start server.js --name HospiCare || Calendar_Automation
-            fi
-
-            pm2 save
-
-            echo "=================================="
-            echo "Deployment Completed Successfully"
-            echo "=================================="
+            echo "SSH Connected Successfully"
+            whoami
+            pwd
+            ls
