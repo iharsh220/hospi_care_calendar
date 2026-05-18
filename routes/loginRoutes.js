@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const loginController = require('../controllers/loginController');
+const {login,verifyToken} = require('../controllers/loginController');
 const authMiddleware = require('../middleware/authMiddleware');
 const { sequelize, Organogram } = require('../models');
 
@@ -23,7 +23,7 @@ router.get('/test-db', async (req, res) => {
   }
 });
 
-router.post('/login', loginController.login);
-router.get('/verify', authMiddleware, loginController.verifyToken);
+router.post('/login', login);
+router.get('/verify', authMiddleware, verifyToken);
 
 module.exports = router;
