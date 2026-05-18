@@ -2,9 +2,11 @@ const sequelize = require('../config/database');
 const DataTypes = require('sequelize').DataTypes;
 
 const Organogram = require('./organogram')(sequelize, DataTypes);
+const Event = require('./event')(sequelize, DataTypes);
 
 const models = {
-  Organogram
+  Organogram,
+  Event
 };
 
 Object.keys(models).forEach(modelName => {

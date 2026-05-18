@@ -23,4 +23,17 @@ const authMiddleware = (req, res, next) => {
   });
 };
 
+// Admin-only middleware
+const adminOnly = (req, res, next) => {
+  if (req.user && req.user.is_admin === 1) {
+    next();
+  } else {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. Admin privileges required.'
+    });
+  }
+};
+
 module.exports = authMiddleware;
+module.exports.adminOnly = adminOnly;

@@ -118,6 +118,167 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Admin Events",
+      "item": [
+        {
+          "name": "Create Event (Yearly - requires date)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    pm.response.json().then(data => {",
+                  "        console.log('Event created:', data);",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event_name\": \"Annual Conference 2026\",\n  \"description\": \"Yearly company-wide conference\",\n  \"event_type\": \"yearly\",\n  \"event_date\": \"2026-12-15\",\n  \"assign_to\": \"KAM, ZM, BDM, Everyone\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/hospitalcare/calendar/automation/admin/events",
+              "host": ["{{base_url}}"],
+              "path": ["hospitalcare", "calendar", "automation", "admin", "events"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Event (Monthly - date optional)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    pm.response.json().then(data => {",
+                  "        console.log('Event created:', data);",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event_name\": \"Team Meeting\",\n  \"description\": \"Weekly team sync\",\n  \"event_type\": \"monthly\",\n  \"assign_to\": \"KAM, ZM, BDM\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/hospitalcare/calendar/automation/admin/events",
+              "host": ["{{base_url}}"],
+              "path": ["hospitalcare", "calendar", "automation", "admin", "events"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Events",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/hospitalcare/calendar/automation/admin/events",
+              "host": ["{{base_url}}"],
+              "path": ["hospitalcare", "calendar", "automation", "admin", "events"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Event",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    pm.response.json().then(data => {",
+                  "        console.log('Event updated:', data);",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event_name\": \"Updated Event Name\",\n  \"description\": \"Updated description\",\n  \"event_type\": \"quarterly\",\n  \"assign_to\": \"KAM, ZM\",\n  \"is_active\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/hospitalcare/calendar/automation/admin/events/{{event_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["hospitalcare", "calendar", "automation", "admin", "events", "{{event_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Event",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/hospitalcare/calendar/automation/admin/events/{{event_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["hospitalcare", "calendar", "automation", "admin", "events", "{{event_id}}"]
+            }
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "variable": [
@@ -130,6 +291,11 @@
       "id": "c9d1g3b1-2345-6789-0bcd-ef1234567890",
       "key": "token",
       "value": ""
+    },
+    {
+      "id": "d0e2h4c2-3456-7890-1cde-fg2345678901",
+      "key": "event_id",
+      "value": "1"
     }
   ]
 }
