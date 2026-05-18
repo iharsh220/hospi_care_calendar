@@ -18,7 +18,6 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
           port: 22
-          debug: true
 
           script: |
             echo "=================================="
@@ -26,18 +25,9 @@ jobs:
             echo "=================================="
 
             APP_DIR="/home/alembicdigilabs/Projects/Divisions/HospiCare/hospi_care_calendar"
-
-            echo "Moving to application directory..."
-
-            if [ ! -d "$APP_DIR" ]; then
-              echo "ERROR: Application directory does not exist!"
-              exit 1
-            fi
+            PM2_APP_NAME="HospiCare || Calendar_Automation"
 
             cd $APP_DIR
-
-            echo "Current Directory:"
-            pwd
 
             echo "Pulling latest code..."
             git pull origin main
@@ -45,27 +35,16 @@ jobs:
             echo "Installing dependencies..."
             npm install --production
 
-            echo "Checking PM2 installation..."
+            echo "Restarting PM2..."
 
-            if ! command -v pm2 &> /dev/null
-            then
-              echo "PM2 not found. Installing PM2..."
-              npm install -g pm2
-            fi
-
-            echo "Checking PM2 process..."
-
-            pm2 describe hospi_care_calendar > /dev/null
+            pm2 describe "$PM2_APP_NAME" > /dev/null
 
             if [ $? -eq 0 ]; then
-              echo "Restarting existing PM2 app..."
-              pm2 restart hospi_care_calendar
+              pm2 restart "$PM2_APP_NAME"
             else
-              echo "Starting new PM2 app..."
-              pm2 start server.js --name hospi_care_calendar
+              pm2 start server.js --name "$PM2_APP_NAME"
             fi
 
-            echo "Saving PM2 process..."
             pm2 save
 
             echo "PM2 Status:"
