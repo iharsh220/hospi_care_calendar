@@ -62,6 +62,11 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       field: 'zm_sapcode'
     },
+    is_admin: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+      field: 'is_admin'
+    },
     created_at: {
       type: DataTypes.DATE,
       field: 'created_at'

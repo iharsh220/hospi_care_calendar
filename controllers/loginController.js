@@ -3,10 +3,51 @@ const { Organogram } = require('../models');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
+// Admin credentials (in production, store in database or environment variables)
+const ADMIN_USERNAME = 'admin';
+const ADMIN_PASSWORD = 'admin123';
+
+// Single login endpoint - handles both admin and regular user
 const login = async (req, res) => {
   try {
-    const { email, sap_code } = req.body;
+    const { email, sap_code, username, password } = req.body;
 
+    // Check if this is an admin login
+    if (username && password) {
+      if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+        const token = jwt.sign(
+          {
+            id: 0,
+            emp_code: 'ADMIN',
+            emp_name: 'Administrator',
+            is_admin: 1,
+            type: 'admin'
+          },
+          JWT_SECRET,
+          { expiresIn: '24h' }
+        );
+
+        return res.json({
+          success: true,
+          message: 'Admin login successful',
+          token: token,
+          user: {
+            id: 0,
+            emp_code: 'ADMIN',
+            emp_name: 'Administrator',
+            is_admin: 1,
+            type: 'admin'
+          }
+        });
+      } else {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid username or password'
+        });
+      }
+    }
+
+    // Regular user login with email and sap_code
     if (!email || !sap_code) {
       return res.status(400).json({
         success: false,
@@ -38,7 +79,9 @@ const login = async (req, res) => {
         region: user.region,
         status: user.status,
         division: user.division,
-        sap_code: user.sap_code
+        sap_code: user.sap_code,
+        is_admin: user.is_admin || 0,
+        type: 'user'
       },
       JWT_SECRET,
       { expiresIn: '24h' }
@@ -63,7 +106,9 @@ const login = async (req, res) => {
         doj: user.doj,
         am_sapcode: user.am_sapcode,
         rm_sapcode: user.rm_sapcode,
-        zm_sapcode: user.zm_sapcode
+        zm_sapcode: user.zm_sapcode,
+        is_admin: user.is_admin || 0,
+        type: 'user'
       }
     });
   } catch (error) {

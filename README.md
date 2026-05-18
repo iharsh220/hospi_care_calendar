@@ -87,10 +87,10 @@ pm2 restart hospitalcare-calendar-automation
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/login` | Login with email and sap_code |
+| POST | `/login` | Login (user with email/sap_code OR admin with username/password) |
 | GET | `/verify` | Verify JWT token (protected) |
 
-### Login Request
+### User Login Request
 
 ```json
 POST /hospitalcare/calendar/automation/login
@@ -99,6 +99,18 @@ Content-Type: application/json
 {
   "email": "ama.bdm.chandigarh@alembic.co.in",
   "sap_code": "111367"
+}
+```
+
+### Admin Login Request
+
+```json
+POST /hospitalcare/calendar/automation/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
 }
 ```
 
@@ -124,10 +136,15 @@ Content-Type: application/json
     "doj": "2023-01-15",
     "am_sapcode": "AM001",
     "rm_sapcode": "RM001",
-    "zm_sapcode": "ZM001"
+    "zm_sapcode": "ZM001",
+    "type": "user"
   }
 }
 ```
+
+**Note:** The `type` field indicates the login type:
+- `"type": "user"` - Regular user login
+- `"type": "admin"` - Admin login
 
 ## CI/CD Pipeline
 
@@ -141,6 +158,12 @@ The project uses GitHub Actions for automated deployment. Configure the followin
 ## Postman Collection
 
 Import the Postman collection from `postman/HospitalCare_Calendar_Automation.postman_collection.json` to test the API endpoints.
+
+**Collection Structure:**
+- **Authentication**: Login (User), Login (Admin), Verify Token
+- **System**: Test Database Connection
+
+**Note:** The token is saved to collection variables. After running Login, the token will be available for subsequent requests.
 
 ## Database Model
 
