@@ -1,0 +1,61 @@
+{
+  "info": {
+    "name": "HospitalCare Calendar Automation",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Postman collection for HospitalCare Calendar Automation API with JWT Authentication"
+  },
+  "item": [
+    {
+      "name": "Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"emp_code\": \"EMP001\",\n  \"sap_code\": \"SAP123\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/hospitalcare/calendar/automation/login",
+          "host": ["{{base_url}}"],
+          "path": ["hospitalcare", "calendar", "automation", "login"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Verify Token",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/hospitalcare/calendar/automation/verify",
+          "host": ["{{base_url}}"],
+          "path": ["hospitalcare", "calendar", "automation", "verify"]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "id": "b8c0f2a0-1234-5678-9abc-def012345678",
+      "key": "base_url",
+      "value": "http://localhost:3000"
+    },
+    {
+      "id": "c9d1g3b1-2345-6789-0bcd-ef1234567890",
+      "key": "token",
+      "value": ""
+    }
+  ]
+}

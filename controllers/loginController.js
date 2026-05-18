@@ -1,0 +1,105 @@
+const jwt = require('jsonwebtoken');
+const { Organogram } = require('../models');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
+
+const login = async (req, res) => {
+  try {
+    const { emp_code, sap_code } = req.body;
+
+    if (!emp_code || !sap_code) {
+      return res.status(400).json({
+        success: false,
+        message: 'emp_code and sap_code are required'
+      });
+    }
+
+    const user = await Organogram.findOne({
+      where: {
+        emp_code: emp_code,
+        sap_code: sap_code
+      }
+    });
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid emp_code or sap_code'
+      });
+    }
+
+    const token = jwt.sign(
+      {
+        id: user.id,
+        emp_code: user.emp_code,
+        emp_name: user.emp_name,
+        hq: user.hq,
+        level: user.level,
+        region: user.region,
+        status: user.status,
+        division: user.division,
+        sap_code: user.sap_code
+      },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({
+      success: true,
+      message: 'Login successful',
+      token: token,
+      user: {
+        id: user.id,
+        emp_code: user.emp_code,
+        emp_name: user.emp_name,
+        hq: user.hq,
+        level: user.level,
+        region: user.region,
+        status: user.status,
+        division: user.division,
+        sap_code: user.sap_code,
+        mobileno: user.mobileno,
+        emailid: user.emailid,
+        doj: user.doj,
+        am_sapcode: user.am_sapcode,
+        rm_sapcode: user.rm_sapcode,
+        zm_sapcode: user.zm_sapcode
+      }
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+const verifyToken = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    res.json({
+      success: true,
+      user: decoded
+    });
+  } catch (error) {
+    res.status(403).json({
+      success: false,
+      message: 'Invalid token'
+    });
+  }
+};
+
+module.exports = {
+  login,
+  verifyToken
+};

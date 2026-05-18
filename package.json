@@ -1,0 +1,30 @@
+{
+  "name": "hospitalcare-calendar-automation",
+  "version": "1.0.0",
+  "description": "HospitalCare Calendar Automation API with JWT Authentication",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [
+    "nodejs",
+    "sequelize",
+    "mysql",
+    "jwt",
+    "hospitalcare"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.0",
+    "express": "^4.18.0",
+    "jsonwebtoken": "^9.0.0",
+    "mysql2": "^3.0.0",
+    "sequelize": "^6.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.0"
+  }
+}
