@@ -6,6 +6,18 @@
   },
   "item": [
     {
+      "name": "Test Database Connection",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/hospitalcare/calendar/automation/test-db",
+          "host": ["{{base_url}}"],
+          "path": ["hospitalcare", "calendar", "automation", "test-db"]
+        }
+      },
+      "response": []
+    },
+    {
       "name": "Login",
       "request": {
         "method": "POST",
@@ -17,7 +29,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"emp_code\": \"EMP001\",\n  \"sap_code\": \"SAP123\"\n}"
+          "raw": "{\n  \"email\": \"ama.bdm.chandigarh@alembic.co.in\",\n  \"sap_code\": \"111367\"\n}"
         },
         "url": {
           "raw": "{{base_url}}/hospitalcare/calendar/automation/login",

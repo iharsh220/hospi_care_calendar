@@ -87,7 +87,7 @@ pm2 restart hospitalcare-calendar-automation
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/login` | Login with emp_code and sap_code |
+| POST | `/login` | Login with email and sap_code |
 | GET | `/verify` | Verify JWT token (protected) |
 
 ### Login Request
@@ -97,8 +97,8 @@ POST /hospitalcare/calendar/automation/login
 Content-Type: application/json
 
 {
-  "emp_code": "EMP001",
-  "sap_code": "SAP123"
+  "email": "ama.bdm.chandigarh@alembic.co.in",
+  "sap_code": "111367"
 }
 ```
 
@@ -148,20 +148,20 @@ The `organogram` table includes the following fields:
 
 | Field | Type |
 |-------|------|
-| id | INTEGER (Primary Key) |
-| emp_code | STRING |
-| emp_name | STRING |
-| hq | STRING |
-| level | STRING |
-| region | STRING |
-| status | STRING |
-| division | STRING |
-| sap_code | STRING |
-| mobileno | STRING |
-| emailid | STRING |
-| doj | DATE |
-| am_sapcode | STRING |
-| rm_sapcode | STRING |
-| zm_sapcode | STRING |
-| created_at | DATE |
-| updated_at | DATE |
+| id | BIGINT (Primary Key) |
+| emp_code | INTEGER |
+| emp_name | VARCHAR(32) |
+| hq | VARCHAR(15) |
+| level | VARCHAR(24) |
+| region | VARCHAR(21) |
+| status | VARCHAR(13) |
+| division | VARCHAR(23) |
+| sap_code | INTEGER |
+| mobileno | VARCHAR(10) |
+| emailid | VARCHAR(35) |
+| doj | VARCHAR(9) |
+| am_sapcode | INTEGER |
+| rm_sapcode | INTEGER |
+| zm_sapcode | INTEGER |
+| created_at | TIMESTAMP |
+| updated_at | TIMESTAMP |

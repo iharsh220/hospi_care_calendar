@@ -1,65 +1,65 @@
 module.exports = (sequelize, DataTypes) => {
   const Organogram = sequelize.define('organogram', {
     id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.BIGINT,
       primaryKey: true,
       autoIncrement: true,
       field: 'id'
     },
     emp_code: {
-      type: DataTypes.STRING(50),
+      type: DataTypes.INTEGER,
       field: 'emp_code'
     },
     emp_name: {
-      type: DataTypes.STRING(255),
+      type: DataTypes.STRING(32),
       field: 'emp_name'
     },
     hq: {
-      type: DataTypes.STRING(100),
+      type: DataTypes.STRING(15),
       field: 'hq'
     },
     level: {
-      type: DataTypes.STRING(50),
+      type: DataTypes.STRING(24),
       field: 'level'
     },
     region: {
-      type: DataTypes.STRING(100),
+      type: DataTypes.STRING(21),
       field: 'region'
     },
     status: {
-      type: DataTypes.STRING(50),
+      type: DataTypes.STRING(13),
       field: 'status'
     },
     division: {
-      type: DataTypes.STRING(100),
+      type: DataTypes.STRING(23),
       field: 'division'
     },
     sap_code: {
-      type: DataTypes.STRING(50),
+      type: DataTypes.INTEGER,
       field: 'sap_code'
     },
     mobileno: {
-      type: DataTypes.STRING(20),
+      type: DataTypes.STRING(10),
       field: 'mobileno'
     },
     emailid: {
-      type: DataTypes.STRING(255),
+      type: DataTypes.STRING(35),
       field: 'emailid'
     },
     doj: {
-      type: DataTypes.DATEONLY,
+      type: DataTypes.STRING(9),
       field: 'doj'
     },
     am_sapcode: {
-      type: DataTypes.STRING(50),
+      type: DataTypes.INTEGER,
       field: 'am_sapcode'
     },
     rm_sapcode: {
-      type: DataTypes.STRING(50),
+      type: DataTypes.INTEGER,
       field: 'rm_sapcode'
     },
     zm_sapcode: {
-      type: DataTypes.STRING(50),
+      type: DataTypes.INTEGER,
       field: 'zm_sapcode'
     },
     created_at: {
@@ -72,7 +72,6 @@ module.exports = (sequelize, DataTypes) => {
     }
   }, {
     tableName: 'organogram',
-    schema: 'public',
     timestamps: false,
     underscored: true
   });

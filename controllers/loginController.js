@@ -5,26 +5,26 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
 const login = async (req, res) => {
   try {
-    const { emp_code, sap_code } = req.body;
+    const { email, sap_code } = req.body;
 
-    if (!emp_code || !sap_code) {
+    if (!email || !sap_code) {
       return res.status(400).json({
         success: false,
-        message: 'emp_code and sap_code are required'
+        message: 'email and sap_code are required'
       });
     }
-
+    
     const user = await Organogram.findOne({
       where: {
-        emp_code: emp_code,
-        sap_code: sap_code
+        emailid: email,
+        sap_code: parseInt(sap_code)
       }
     });
-
+    
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid emp_code or sap_code'
+        message: 'Invalid email or sap_code'
       });
     }
 
