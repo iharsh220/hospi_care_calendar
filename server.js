@@ -13,10 +13,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve uploaded proof files statically
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(`${BASE_PATH}/uploads`, express.static(path.join(__dirname, 'uploads')));
 
 // ── Routes ──
-const authRoutes  = require('./routes/auth');
+const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
 const fieldRoutes = require('./routes/field');
 
