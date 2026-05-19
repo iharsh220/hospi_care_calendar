@@ -1,6 +1,6 @@
 const sequelize = require('../config/database');
 const Admin = require('./Admin');
-const Organogram = require('./Organogram');
+const Organogram = require('./organogram');
 const Event = require('./Event');
 const EventAssignment = require('./EventAssignment');
 
