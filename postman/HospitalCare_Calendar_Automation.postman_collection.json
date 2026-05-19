@@ -279,6 +279,29 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "User Events",
+      "item": [
+        {
+          "name": "Get My Events (Role-based)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/hospitalcare/calendar/automation/user/events",
+              "host": ["{{base_url}}"],
+              "path": ["hospitalcare", "calendar", "automation", "user", "events"]
+            }
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "variable": [
