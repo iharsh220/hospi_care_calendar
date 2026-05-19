@@ -1,0 +1,407 @@
+{
+  "info": {
+    "name": "FieldTrack API — HospitalCare",
+    "description": "Postman collection for the FieldTrack organogram & event-tracking API. Base URL is configurable via the `baseUrl` variable.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:12000/hospitalcare/calendar/automation",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "fieldToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🔐 Authentication",
+      "item": [
+        {
+          "name": "Super Admin Login (static credentials)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["login"]
+            },
+            "description": "Super-admin login — uses static credentials (username: `admin`, password: `admin`). No database lookup. Returns a JWT token stored in `adminToken`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    pm.collectionVariables.set('adminToken', json.token);",
+                  "    console.log('Admin token saved:', json.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Field User Login (emailid + sap_code)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"emailid\": \"kam1@hospitalcare.com\",\n  \"sap_code\": \"KAM001\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["login"]
+            },
+            "description": "Field-user login — authenticates against the `field_users` table using `emailid` and `sap_code`. Returns a JWT with the user's `level` (ZM | RM | KAM) embedded for hierarchy checks."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    pm.collectionVariables.set('fieldToken', json.token);",
+                  "    console.log('Field token saved:', json.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "👑 Admin Routes (require admin JWT)",
+      "description": "All endpoints in this folder require the `adminToken` variable to be populated (run the Super Admin Login request first).",
+      "item": [
+        {
+          "name": "Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/dashboard?month=5&year=2026",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "dashboard"],
+              "query": [
+                { "key": "month", "value": "5" },
+                { "key": "year", "value": "2026" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Calendar",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/calendar?month=5&year=2026",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "calendar"],
+              "query": [
+                { "key": "month", "value": "5" },
+                { "key": "year", "value": "2026" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Events",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/events",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "events"]
+            }
+          }
+        },
+        {
+          "name": "Create Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Doctor Visit — Cardiology\",\n  \"description\": \"Monthly cardiology check visit\",\n  \"type\": \"monthly\",\n  \"assigned_to\": \"all\",\n  \"seven_day_reminder\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/events",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "events"]
+            }
+          }
+        },
+        {
+          "name": "Update Event",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Doctor Visit — Cardiology\",\n  \"type\": \"monthly\",\n  \"assigned_to\": \"all\",\n  \"seven_day_reminder\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/events/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "events", "1"]
+            }
+          }
+        },
+        {
+          "name": "Tracking Overview",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tracking?month=5&year=2026",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "tracking"],
+              "query": [
+                { "key": "month", "value": "5" },
+                { "key": "year", "value": "2026" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Incomplete Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/incomplete?month=5&year=2026",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "incomplete"],
+              "query": [
+                { "key": "month", "value": "5" },
+                { "key": "year", "value": "2026" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Field Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users"]
+            }
+          }
+        },
+        {
+          "name": "Create Field User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"emp_name\": \"Rahul Sharma\",\n  \"emailid\": \"rahul@hospitalcare.com\",\n  \"sap_code\": \"KAM003\",\n  \"emp_code\": \"EMP003\",\n  \"level\": \"KAM\",\n  \"region\": \"North\",\n  \"division\": \"Cardiology\",\n  \"hq\": \"Delhi\",\n  \"mobileno\": \"9876543210\",\n  \"doj\": \"2025-01-15\",\n  \"rm_sapcode\": \"RM001\",\n  \"zm_sapcode\": \"ZM001\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👤 Field User Routes (require field JWT)",
+      "description": "All endpoints in this folder require the `fieldToken` variable to be populated (run the Field User Login request first).",
+      "item": [
+        {
+          "name": "My Events",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{fieldToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/field/my-events?month=5&year=2026",
+              "host": ["{{baseUrl}}"],
+              "path": ["field", "my-events"],
+              "query": [
+                { "key": "month", "value": "5" },
+                { "key": "year", "value": "2026" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Submit Completion",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{fieldToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "event_id", "value": "1", "type": "text" },
+                { "key": "completed_on", "value": "2026-05-15", "type": "text" },
+                { "key": "notes", "value": "Visit completed successfully", "type": "text" },
+                { "key": "proof_image", "type": "file", "src": [] }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/field/complete",
+              "host": ["{{baseUrl}}"],
+              "path": ["field", "complete"]
+            }
+          }
+        },
+        {
+          "name": "My History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{fieldToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/field/my-history",
+              "host": ["{{baseUrl}}"],
+              "path": ["field", "my-history"]
+            }
+          }
+        },
+        {
+          "name": "📊 Organogram Reports (ZM / RM / KAM)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{fieldToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/field/reports?month=5&year=2026",
+              "host": ["{{baseUrl}}"],
+              "path": ["field", "reports"],
+              "query": [
+                { "key": "month", "value": "5" },
+                { "key": "year", "value": "2026" }
+              ]
+            }
+          },
+          "description": "Returns hierarchy-filtered reports based on the logged-in user's `level`:\n\n• **ZM** — sees all RM and KAM under their `zm_sapcode`; response includes an `organogram` tree with `zm`, `rms[]`, and `kams[]`.\n• **RM** — sees all KAM under their `rm_sapcode`; response includes `organogram.rm` and `organogram.kams[]`.\n• **KAM** — sees only their own report; `organogram` is `null`.\n\nQuery params: `month`, `year`, `search` (emp_name / emp_code / region / division), `status` (all | complete | incomplete | carry)."
+        }
+      ]
+    },
+    {
+      "name": "🏥 Health Check",
+      "item": [
+        {
+          "name": "API Root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": ["{{baseUrl}}"],
+              "path": ["", ""]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

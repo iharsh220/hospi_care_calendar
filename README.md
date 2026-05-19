@@ -1,190 +1,198 @@
-# HospitalCare Calendar Automation API
+# FieldTrack Backend — Node.js API
 
-A Node.js application with MySQL and Sequelize using MVC pattern for hospital calendar automation with JWT authentication.
+Complete REST API for the FieldTrack Hospital Care Calendar Automation system.
 
-## Features
-
-- **MVC Architecture**: Clean separation of concerns
-- **MySQL Database**: Using Sequelize ORM
-- **JWT Authentication**: Secure token-based authentication
-- **PM2 Support**: Production process management
-- **CI/CD Pipeline**: GitHub Actions for automated deployment
+---
 
 ## Project Structure
 
 ```
-├── config/
-│   └── database.js          # Database configuration
-├── controllers/
-│   └── loginController.js   # Login logic with JWT
-├── middleware/
-│   └── authMiddleware.js    # JWT authentication middleware
-├── models/
-│   ├── index.js            # Model exports
-│   └── organogram.js       # Organogram model
-├── routes/
-│   ├── index.js            # Route aggregator
-│   └── loginRoutes.js      # Login routes
-├── .env                    # Environment variables
-├── .gitignore
+fieldtrack/
+├── server.js                  # Entry point
+├── .env                       # Environment config
 ├── package.json
-├── ecosystem.config.js     # PM2 configuration
-└── server.js               # Entry point
+├── config/
+│   └── database.js            # Sequelize + MySQL config
+├── models/
+│   ├── index.js               # Model loader + associations
+│   ├── Admin.js               # Admin table
+│   ├── FieldUser.js           # Field users table
+│   ├── Event.js               # Events table
+│   └── EventAssignment.js     # User × Event × Month assignments
+├── middlewares/
+│   ├── auth.js                # JWT auth + role guards
+│   └── upload.js              # Multer file upload
+├── controllers/
+│   ├── authController.js      # Login (admin + field)
+│   ├── adminController.js     # All 9 admin endpoints
+│   └── fieldController.js     # All 3 field endpoints
+├── routes/
+│   ├── auth.js
+│   ├── admin.js
+│   └── field.js
+├── scripts/
+│   └── syncDb.js              # DB sync + seed
+└── uploads/                   # Proof images stored here
 ```
 
-## Installation
+---
 
+## Setup
+
+### 1. Install dependencies
 ```bash
 npm install
 ```
 
-## Configuration
-
-Copy `.env.example` to `.env` and update the following variables:
-
-```env
-# Database Configuration
-DB_HOST=your_database_host
-DB_USER=your_database_user
-DB_PASSWORD=your_database_password
-DB_NAME=your_database_name
-
-# JWT Configuration
-JWT_SECRET=your_jwt_secret_key
-
-# Server Configuration
-PORT=12000
+### 2. Configure environment
+Edit `.env` if needed (credentials are pre-filled):
+```
+DB_HOST=alembicdigilabs.in
+DB_USER=alembicdigilabs_codelab
+DB_PASSWORD=alembiccodelab
+DB_NAME=alembicdigilabs_hospital_care_automation
+JWT_SECRET=fieldtrack_jwt_secret_2025_alembic
+PORT=3000
 ```
 
-## Running the Application
-
-### Development
+### 3. Sync database & seed default data
 ```bash
-npm run dev
+npm run sync-db
 ```
+This will:
+- Create all tables (admins, field_users, events, event_assignments)
+- Create default admin: `admin / admin123`
+- Create 4 sample field users
+- Create 6 default events (3 monthly + 3 specific)
+- Auto-assign all events to all users for the current month
 
-### Production with PM2
+### 4. Start the server
 ```bash
-# Start the application
-pm2 start ecosystem.config.js
-
-# List running processes
-pm2 list
-
-# View logs
-pm2 logs
-
-# Stop the application
-pm2 stop hospitalcare-calendar-automation
-
-# Restart the application
-pm2 restart hospitalcare-calendar-automation
+npm start          # production
+npm run dev        # development with auto-reload
 ```
 
-## API Endpoints
+---
 
-### Base URL: `/hospitalcare/calendar/automation`
+## API Reference
+
+**Base URL:** `http://localhost:3000/hospitalcare/calendar/automation`
+
+All protected routes require:
+```
+Authorization: Bearer <token>
+```
+
+---
+
+### Authentication (Public)
+
+#### Login — Admin
+```
+POST /login
+Content-Type: application/json
+
+{ "username": "admin", "password": "admin123" }
+```
+
+#### Login — Field User
+```
+POST /login
+Content-Type: application/json
+
+{ "email": "ama.bdm.chandigarh@alembic.co.in", "sap_code": "111367" }
+```
+
+---
+
+### Admin Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/login` | Login (user with email/sap_code OR admin with username/password) |
-| GET | `/verify` | Verify JWT token (protected) |
+| GET | `/admin/dashboard?month=5&year=2025` | Summary stats, alerts, event completion, zone performance |
+| GET | `/admin/calendar?month=5&year=2025` | Monthly/specific event calendar data |
+| GET | `/admin/events` | List all active events |
+| POST | `/admin/events` | Create a new event |
+| PUT | `/admin/events/:event_id` | Edit an event |
+| GET | `/admin/tracking?month=5&year=2025&filter=all&zone=all&search=` | Track all field users |
+| GET | `/admin/incomplete?month=5&year=2025&filter=all` | View users with pending/overdue tasks |
+| GET | `/admin/users?search=&zone=all` | Field users directory |
+| POST | `/admin/users` | Add a new field user |
 
-### User Login Request
-
+#### Create Event Body
 ```json
-POST /hospitalcare/calendar/automation/login
-Content-Type: application/json
-
 {
-  "email": "ama.bdm.chandigarh@alembic.co.in",
-  "sap_code": "111367"
+  "name": "New Safety Check",
+  "description": "Monthly safety inspection",
+  "type": "monthly",
+  "date": null,
+  "assigned_to": "all",
+  "seven_day_reminder": false
+}
+```
+> For `type: "specific"`, provide `"date": "2025-06-15"`
+> `assigned_to`: `"all"` or zone like `"North"`, `"South"`, `"East"`, `"West"`
+
+#### Add Field User Body
+```json
+{
+  "first_name": "Priya",
+  "last_name": "Nair",
+  "email": "priya.nair@company.com",
+  "sap_code": "111367",
+  "zone": "North",
+  "employee_id": "EMP-101",
+  "mobile": "+91 99999 99999"
 }
 ```
 
-### Admin Login Request
+---
 
-```json
-POST /hospitalcare/calendar/automation/login
-Content-Type: application/json
+### Field User Endpoints
 
-{
-  "username": "admin",
-  "password": "admin123"
-}
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/field/my-events?month=5&year=2025` | My events for the month |
+| POST | `/field/complete` | Submit event completion with proof |
+| GET | `/field/my-history` | My completion history |
+
+#### Submit Completion (multipart/form-data)
+```
+POST /field/complete
+Content-Type: multipart/form-data
+
+event_id     = 101
+completed_on = 2025-05-19
+notes        = Completed successfully
+proof_image  = <file: JPG/PNG/PDF, max 10MB>
 ```
 
-### Login Response
+---
 
-```json
-{
-  "success": true,
-  "message": "Login successful",
-  "token": "jwt_token_here",
-  "user": {
-    "id": 1,
-    "emp_code": "EMP001",
-    "emp_name": "John Doe",
-    "hq": "Headquarters",
-    "level": "Manager",
-    "region": "North",
-    "status": "Active",
-    "division": "Cardiology",
-    "sap_code": "SAP123",
-    "mobileno": "1234567890",
-    "emailid": "john@example.com",
-    "doj": "2023-01-15",
-    "am_sapcode": "AM001",
-    "rm_sapcode": "RM001",
-    "zm_sapcode": "ZM001",
-    "type": "user"
-  }
-}
-```
+## Database Tables
 
-**Note:** The `type` field indicates the login type:
-- `"type": "user"` - Regular user login
-- `"type": "admin"` - Admin login
+| Table | Purpose |
+|-------|---------|
+| `admins` | Admin login accounts |
+| `field_users` | Field employee profiles |
+| `events` | Event definitions (monthly / specific-date) |
+| `event_assignments` | Per-user per-month event tracking with status |
 
-## CI/CD Pipeline
+### Event Assignment Status Values
+| Status | Meaning |
+|--------|---------|
+| `pending` | Not yet done, no special state |
+| `done` | Completed with proof |
+| `carry` | Rolled over from prior month |
+| `remind` | Specific event within 7 days |
+| `upcoming` | Specific event more than 7 days away |
 
-The project uses GitHub Actions for automated deployment. Configure the following secrets in your GitHub repository:
+---
 
-- `HOST`: Server IP address
-- `USERNAME`: SSH username
-- `SSH_KEY`: SSH private key
-- `APP_NAME`: Application name for PM2
+## Key Business Logic
 
-## Postman Collection
-
-Import the Postman collection from `postman/HospitalCare_Calendar_Automation.postman_collection.json` to test the API endpoints.
-
-**Collection Structure:**
-- **Authentication**: Login (User), Login (Admin), Verify Token
-- **System**: Test Database Connection
-
-**Note:** The token is saved to collection variables. After running Login, the token will be available for subsequent requests.
-
-## Database Model
-
-The `organogram` table includes the following fields:
-
-| Field | Type |
-|-------|------|
-| id | BIGINT (Primary Key) |
-| emp_code | INTEGER |
-| emp_name | VARCHAR(32) |
-| hq | VARCHAR(15) |
-| level | VARCHAR(24) |
-| region | VARCHAR(21) |
-| status | VARCHAR(13) |
-| division | VARCHAR(23) |
-| sap_code | INTEGER |
-| mobileno | VARCHAR(10) |
-| emailid | VARCHAR(35) |
-| doj | VARCHAR(9) |
-| am_sapcode | INTEGER |
-| rm_sapcode | INTEGER |
-| zm_sapcode | INTEGER |
-| created_at | TIMESTAMP |
-| updated_at | TIMESTAMP |
+- **Carry-forwards**: When a monthly event is not completed by month-end, a new `EventAssignment` is created in the next month with `is_carry_forward: true`
+- **Auto-assignment**: When a new event is created, it is automatically assigned to all matching users for the current month
+- **New user onboarding**: When a field user is added, all currently active events are automatically assigned to them
+- **Risk levels** (incomplete view): `high` = 3+ pending, `medium` = has carry-forward, `low` = otherwise
+- **7-day reminder**: Specific events within 7 days get `status: "remind"` and show a blue alert to the field user

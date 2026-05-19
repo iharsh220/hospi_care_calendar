@@ -1,89 +1,91 @@
-module.exports = (sequelize, DataTypes) => {
-  const Organogram = sequelize.define('organogram', {
-    id: {
-      type: DataTypes.BIGINT,
-      primaryKey: true,
-      autoIncrement: true,
-      field: 'id'
-    },
-    emp_code: {
-      type: DataTypes.INTEGER,
-      field: 'emp_code'
-    },
-    emp_name: {
-      type: DataTypes.STRING(32),
-      field: 'emp_name'
-    },
-    hq: {
-      type: DataTypes.STRING(15),
-      field: 'hq'
-    },
-    level: {
-      type: DataTypes.STRING(24),
-      field: 'level'
-    },
-    region: {
-      type: DataTypes.STRING(21),
-      field: 'region'
-    },
-    status: {
-      type: DataTypes.STRING(13),
-      field: 'status'
-    },
-    division: {
-      type: DataTypes.STRING(23),
-      field: 'division'
-    },
-    sap_code: {
-      type: DataTypes.INTEGER,
-      field: 'sap_code'
-    },
-    mobileno: {
-      type: DataTypes.STRING(10),
-      field: 'mobileno'
-    },
-    emailid: {
-      type: DataTypes.STRING(35),
-      field: 'emailid'
-    },
-    doj: {
-      type: DataTypes.STRING(9),
-      field: 'doj'
-    },
-    am_sapcode: {
-      type: DataTypes.INTEGER,
-      field: 'am_sapcode'
-    },
-    rm_sapcode: {
-      type: DataTypes.INTEGER,
-      field: 'rm_sapcode'
-    },
-    zm_sapcode: {
-      type: DataTypes.INTEGER,
-      field: 'zm_sapcode'
-    },
-    is_admin: {
-      type: DataTypes.INTEGER,
-      defaultValue: 0,
-      field: 'is_admin'
-    },
-    created_at: {
-      type: DataTypes.DATE,
-      field: 'created_at'
-    },
-    updated_at: {
-      type: DataTypes.DATE,
-      field: 'updated_at'
-    }
-  }, {
-    tableName: 'organogram',
-    timestamps: false,
-    underscored: true
-  });
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/database');
 
-  Organogram.associate = (models) => {
-    // Define associations if needed
-  };
+const Organogram = sequelize.define('Organogram', {
+  id: {
+    type: DataTypes.BIGINT,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  emp_code: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
+  emp_name: {
+    type: DataTypes.STRING(32),
+    allowNull: true
+  },
+  hq: {
+    type: DataTypes.STRING(15),
+    allowNull: true
+  },
+  level: {
+    type: DataTypes.STRING(24),
+    allowNull: true
+  },
+  region: {
+    type: DataTypes.STRING(21),
+    allowNull: true
+  },
+  status: {
+    type: DataTypes.STRING(13),
+    allowNull: true
+  },
+  division: {
+    type: DataTypes.STRING(23),
+    allowNull: true
+  },
+  sap_code: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
+  mobileno: {
+    type: DataTypes.STRING(10),
+    allowNull: true
+  },
+  emailid: {
+    type: DataTypes.STRING(35),
+    allowNull: true
+  },
+  doj: {
+    type: DataTypes.STRING(9),
+    allowNull: true
+  },
+  am_sapcode: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
+  rm_sapcode: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
+  zm_sapcode: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
+  is_admin: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  updated_at: {
+    type: DataTypes.DATE,
+    allowNull: true
+  }
+}, {
+  tableName: 'organogram',
+  timestamps: false
+});
 
-  return Organogram;
+// Virtual: get initials from emp_name
+Organogram.prototype.getInitials = function () {
+  if (!this.emp_name) return '';
+  const parts = String(this.emp_name).trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 };
+
+module.exports = Organogram;

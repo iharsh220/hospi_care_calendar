@@ -1,21 +1,14 @@
 const sequelize = require('../config/database');
-const DataTypes = require('sequelize').DataTypes;
+const Admin = require('./Admin');
+const Organogram = require('./Organogram');
+const Event = require('./Event');
+const EventAssignment = require('./EventAssignment');
 
-const Organogram = require('./organogram')(sequelize, DataTypes);
-const Event = require('./event')(sequelize, DataTypes);
+// Associations
+Organogram.hasMany(EventAssignment, { foreignKey: 'field_user_id', as: 'assignments' });
+EventAssignment.belongsTo(Organogram, { foreignKey: 'field_user_id', as: 'fieldUser' });
 
-const models = {
-  Organogram,
-  Event
-};
+Event.hasMany(EventAssignment, { foreignKey: 'event_id', as: 'assignments' });
+EventAssignment.belongsTo(Event, { foreignKey: 'event_id', as: 'event' });
 
-Object.keys(models).forEach(modelName => {
-  if ('associate' in models[modelName]) {
-    models[modelName].associate(models);
-  }
-});
-
-module.exports = {
-  sequelize,
-  ...models
-};
+module.exports = { sequelize, Admin, Organogram, Event, EventAssignment };

@@ -1,47 +1,47 @@
-module.exports = (sequelize, DataTypes) => {
-  const Event = sequelize.define('event', {
-    id: {
-      type: DataTypes.BIGINT,
-      primaryKey: true,
-      autoIncrement: true,
-      field: 'id'
-    },
-    event_name: {
-      type: DataTypes.STRING(255),
-      allowNull: false,
-      field: 'event_name'
-    },
-    description: {
-      type: DataTypes.TEXT,
-      field: 'description'
-    },
-    event_type: {
-      type: DataTypes.ENUM('monthly', 'di_monthly', 'quarterly', 'half_yearly', 'yearly'),
-      allowNull: false,
-      field: 'event_type'
-    },
-    event_date: {
-      type: DataTypes.DATE,
-      field: 'event_date'
-    },
-    assign_to: {
-      type: DataTypes.STRING(500),
-      field: 'assign_to'
-    },
-    is_active: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: true,
-      field: 'is_active'
-    }
-  }, {
-    tableName: 'events',
-    timestamps: true,
-    underscored: true
-  });
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/database');
 
-  Event.associate = (models) => {
-    // Define associations if needed
-  };
+const Event = sequelize.define('Event', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  name: {
+    type: DataTypes.STRING(150),
+    allowNull: false
+  },
+  description: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  // 'monthly' = open period each month | 'specific' = fixed date
+  type: {
+    type: DataTypes.ENUM('monthly', 'specific'),
+    allowNull: false,
+    defaultValue: 'monthly'
+  },
+  // Only for type='specific', format YYYY-MM-DD
+  event_date: {
+    type: DataTypes.DATEONLY,
+    allowNull: true
+  },
+  // 'all' or zone name like 'North'
+  assigned_to: {
+    type: DataTypes.STRING(20),
+    allowNull: false,
+    defaultValue: 'all'
+  },
+  seven_day_reminder: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  is_active: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
+  }
+}, {
+  tableName: 'events'
+});
 
-  return Event;
-};
+module.exports = Event;
