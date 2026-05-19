@@ -11,7 +11,8 @@ const SUPER_ADMIN = {
 // Handles both super-admin (static username+password) and field user (emailid+sap_code)
 const login = async (req, res) => {
   try {
-    const { username, password, emailid, sap_code } = req.body;
+    const { username, password, email, emailid, sap_code } = req.body;
+    const loginEmail = email || emailid;
 
     // ── Super Admin login (static credentials, no DB) ──
     if (username && password) {
@@ -38,9 +39,9 @@ const login = async (req, res) => {
       });
     }
 
-    // ── Field user login (emailid + sap_code) ──
-    if (emailid && sap_code) {
-      const user = await Organogram.findOne({ where: { emailid, sap_code, status: 'active' } });
+    // ── Field user login (email + sap_code) ──
+    if (loginEmail && sap_code) {
+      const user = await Organogram.findOne({ where: { emailid: loginEmail, sap_code, status: 'active' } });
       if (!user) {
         return res.status(401).json({ success: false, message: 'Invalid credentials' });
       }
@@ -80,7 +81,7 @@ const login = async (req, res) => {
 
     return res.status(400).json({
       success: false,
-      message: 'Provide (username + password) for admin or (emailid + sap_code) for field user'
+      message: 'Provide (username + password) for admin or (email + sap_code) for field user'
     });
 
   } catch (err) {

@@ -455,7 +455,7 @@ const getUsers = async (req, res) => {
     const year = new Date().getFullYear();
 
     const where = { status: 'active' };
-    if (zone !== 'all') where.region = zone;
+    if (region !== 'all') where.region = region;
     if (search) {
       where[Op.or] = [
         { emp_name: { [Op.like]: `%${search}%` } },
