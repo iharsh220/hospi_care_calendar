@@ -7,7 +7,11 @@ const app = express();
 const PORT = process.env.PORT || 12000;
 
 // Middleware
-app.use(cors());
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || true,
+  credentials: true,
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -24,7 +28,7 @@ sequelize.authenticate()
   });
 
 // Sync database
-sequelize.sync({ alter: true })
+sequelize.sync({ alter: false })
   .then(() => {
     console.log('Database synced successfully.');
   })
