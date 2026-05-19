@@ -26,7 +26,7 @@ const Event = sequelize.define('Event', {
     type: DataTypes.DATEONLY,
     allowNull: true
   },
-  // 'all' or zone name like 'North'
+  // 'all' or level name like 'BDM - Government Account', 'AM', 'RM', 'ZM'
   assigned_to: {
     type: DataTypes.STRING(20),
     allowNull: false,

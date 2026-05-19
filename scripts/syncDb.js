@@ -58,7 +58,7 @@ async function syncAndSeed() {
     let assignmentCount = 0;
     for (const user of allUsers) {
       for (const event of createdEvents) {
-        if (event.assigned_to !== 'all' && event.assigned_to !== user.region) continue;
+        if (event.assigned_to !== 'all' && event.assigned_to !== user.level) continue;
 
         const existing = await EventAssignment.findOne({
           where: { field_user_id: user.id, event_id: event.id, month: m, year: y, is_carry_forward: false }

@@ -69,7 +69,7 @@ const login = async (req, res) => {
           emailid: user.emailid,
           sap_code: user.sap_code,
           level: user.level,
-          region: user.region,
+          level: user.level,
           division: user.division,
           hq: user.hq,
           mobileno: user.mobileno,

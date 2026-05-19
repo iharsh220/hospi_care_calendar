@@ -23,10 +23,6 @@ const Organogram = sequelize.define('Organogram', {
     type: DataTypes.STRING(24),
     allowNull: true
   },
-  region: {
-    type: DataTypes.STRING(21),
-    allowNull: true
-  },
   status: {
     type: DataTypes.STRING(13),
     allowNull: true

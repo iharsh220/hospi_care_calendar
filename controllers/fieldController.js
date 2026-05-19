@@ -95,7 +95,7 @@ const getMyEvents = async (req, res) => {
 
     res.json({
       success: true,
-      user: { name: user.emp_name, region: user.region },
+      user: { name: user.emp_name, level: user.level },
       month_label: monthLabel(month, year),
       alerts,
       sidebar_status: { done, pending, completion_percent: completionPercent, has_carry_forward: hasCarryForward },

@@ -30,7 +30,7 @@ const getDashboard = async (req, res) => {
       where: { month, year },
       include: [
         { model: Event, as: 'event', attributes: ['name', 'type'] },
-        { model: Organogram, as: 'fieldUser', attributes: ['id', 'region'] }
+        { model: Organogram, as: 'fieldUser', attributes: ['id', 'level'] }
       ]
     });
 
@@ -67,26 +67,29 @@ const getDashboard = async (req, res) => {
       percent: e.total > 0 ? Math.round((e.completed / e.total) * 100) : 0
     }));
 
-    // Zone performance
-    const zones = ['North', 'South', 'East', 'West'];
-    const zone_performance = await Promise.all(zones.map(async (zone) => {
-      const zoneUsers = await Organogram.findAll({ where: { region: zone, status: 'active' }, attributes: ['id'] });
-      const zoneUserIds = zoneUsers.map(u => u.id);
-      const zoneAssignments = assignments.filter(a => zoneUserIds.includes(a.field_user_id));
-
-      const totalAssignments = zoneAssignments.length;
-      const doneCount = zoneAssignments.filter(a => a.status === 'done').length;
-      const overdueCount = new Set(zoneAssignments.filter(a => a.status !== 'done').map(a => a.field_user_id)).size;
-      const carryCount = zoneAssignments.filter(a => a.is_carry_forward).length;
+    // Level performance
+    const allActiveUsers = await Organogram.findAll({ where: { status: 'active' }, attributes: ['id', 'level'] });
+    const levelMap = {};
+    for (const u of allActiveUsers) {
+      const lvl = u.level || 'Unassigned';
+      if (!levelMap[lvl]) levelMap[lvl] = [];
+      levelMap[lvl].push(u.id);
+    }
+    const level_performance = Object.entries(levelMap).map(([lvl, userIds]) => {
+      const lvlAssignments = assignments.filter(a => userIds.includes(a.field_user_id));
+      const totalAssignments = lvlAssignments.length;
+      const doneCount = lvlAssignments.filter(a => a.status === 'done').length;
+      const overdueCount = new Set(lvlAssignments.filter(a => a.status !== 'done').map(a => a.field_user_id)).size;
+      const carryCount = lvlAssignments.filter(a => a.is_carry_forward).length;
 
       return {
-        zone,
-        total_users: zoneUserIds.length,
+        level: lvl,
+        total_users: userIds.length,
         avg_completion_percent: totalAssignments > 0 ? Math.round((doneCount / totalAssignments) * 100) : 0,
         overdue_count: overdueCount,
         carry_forward_count: carryCount
       };
-    }));
+    });
 
     res.json({
       success: true,
@@ -96,7 +99,7 @@ const getDashboard = async (req, res) => {
       stats: { total_expected: totalExpected, completed, pending_overdue: pendingOverdue, carry_forwards: carryForwards },
       alerts,
       event_completion,
-      zone_performance
+      level_performance
     });
   } catch (err) {
     console.error('Dashboard error:', err);
@@ -167,7 +170,7 @@ const getEvents = async (req, res) => {
     const formatted = events.map(e => {
       const assignedLabel = e.assigned_to === 'all'
         ? `All ${totalUsers} users`
-        : `Zone ${e.assigned_to}`;
+        : `Level: ${e.assigned_to}`;
 
       return {
         id: e.id,
@@ -227,7 +230,7 @@ const createEvent = async (req, res) => {
 // ─────────────────────────────────────────────
 const assignEventToUsers = async (event) => {
   const where = { status: 'active' };
-  if (event.assigned_to !== 'all') where.region = event.assigned_to;
+  if (event.assigned_to !== 'all') where.level = event.assigned_to;
   const users = await Organogram.findAll({ where, attributes: ['id'] });
 
   const now = new Date();
@@ -294,14 +297,14 @@ const getTracking = async (req, res) => {
     const year = parseInt(req.query.year) || new Date().getFullYear();
     const search = req.query.search || '';
     const filter = req.query.filter || 'all';
-    const zone = req.query.zone || 'all';
+    const level = req.query.level || 'all';
 
     const userWhere = { status: 'active' };
-    if (zone !== 'all') userWhere.region = zone;
+    if (level !== 'all') userWhere.level = level;
     if (search) {
       userWhere[Op.or] = [
         { emp_name: { [Op.like]: `%${search}%` } },
-        { region: { [Op.like]: `%${search}%` } }
+        { level: { [Op.like]: `%${search}%` } }
       ];
     }
 
@@ -337,7 +340,7 @@ const getTracking = async (req, res) => {
         id: u.id,
         name: u.emp_name,
         emp_code: u.emp_code,
-        region: u.region,
+        level: u.level,
         emailid: u.emailid,
         completed,
         pending,
@@ -420,7 +423,7 @@ const getIncomplete = async (req, res) => {
       return {
         id: u.id,
         name: u.emp_name,
-        region: u.region,
+        level: u.level,
         pending_count: pendingCount,
         has_carry_forward: hasCarryForward,
         risk_level: riskLevel,
@@ -450,12 +453,12 @@ const getIncomplete = async (req, res) => {
 const getUsers = async (req, res) => {
   try {
     const search = req.query.search || '';
-    const region = req.query.region || 'all';
+    const level = req.query.level || 'all';
     const month = new Date().getMonth() + 1;
     const year = new Date().getFullYear();
 
     const where = { status: 'active' };
-    if (region !== 'all') where.region = region;
+    if (level !== 'all') where.level = level;
     if (search) {
       where[Op.or] = [
         { emp_name: { [Op.like]: `%${search}%` } },
@@ -493,7 +496,7 @@ const getUsers = async (req, res) => {
         id: u.id,
         name: u.emp_name,
         emp_code: u.emp_code,
-        region: u.region,
+        level: u.level,
         emailid: u.emailid,
         level: u.level,
         completion_percent: completionPercent,
@@ -514,10 +517,10 @@ const getUsers = async (req, res) => {
 // ─────────────────────────────────────────────
 const createUser = async (req, res) => {
   try {
-    const { emp_name, emailid, sap_code, region, emp_code, mobileno, level, division, hq, doj, am_sapcode, rm_sapcode, zm_sapcode } = req.body;
+    const { emp_name, emailid, sap_code, emp_code, mobileno, level, division, hq, doj, am_sapcode, rm_sapcode, zm_sapcode } = req.body;
 
-    if (!emp_name || !emailid || !sap_code || !region || !emp_code || !level) {
-      return res.status(400).json({ success: false, message: 'emp_name, emailid, sap_code, region, emp_code, and level are required' });
+    if (!emp_name || !emailid || !sap_code || !emp_code || !level) {
+      return res.status(400).json({ success: false, message: 'emp_name, emailid, sap_code, emp_code, and level are required' });
     }
 
     const existing = await Organogram.findOne({
@@ -527,13 +530,13 @@ const createUser = async (req, res) => {
       return res.status(409).json({ success: false, message: 'User with same emailid, SAP code, or emp_code already exists' });
     }
 
-    const user = await Organogram.create({ emp_name, emailid, sap_code, region, emp_code, mobileno, level, division, hq, doj, am_sapcode, rm_sapcode, zm_sapcode });
+    const user = await Organogram.create({ emp_name, emailid, sap_code, emp_code, mobileno, level, division, hq, doj, am_sapcode, rm_sapcode, zm_sapcode });
 
     // Auto-assign existing active events to the new user
     const events = await Event.findAll({
       where: {
         is_active: true,
-        [Op.or]: [{ assigned_to: 'all' }, { assigned_to: region }]
+        [Op.or]: [{ assigned_to: 'all' }, { assigned_to: level }]
       }
     });
 

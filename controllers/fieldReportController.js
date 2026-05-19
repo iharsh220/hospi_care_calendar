@@ -38,7 +38,6 @@ const getReports = async (req, res) => {
       subordinateWhere[Op.or] = [
         { emp_name: { [Op.like]: `%${search}%` } },
         { emp_code: { [Op.like]: `%${search}%` } },
-        { region: { [Op.like]: `%${search}%` } },
         { division: { [Op.like]: `%${search}%` } }
       ];
     }
@@ -96,7 +95,6 @@ const getReports = async (req, res) => {
         emp_code: u.emp_code,
         emp_name: u.emp_name,
         level: u.level,
-        region: u.region,
         division: u.division,
         hq: u.hq,
         emailid: u.emailid,
@@ -144,7 +142,6 @@ const getReports = async (req, res) => {
           emp_code: r.emp_code,
           emp_name: r.emp_name,
           level: r.level,
-          region: r.region,
           completion_percent: r.completion_percent,
           status: r.status,
           kam_count: kams.filter(k => k.rm_sapcode === r.sap_code || k.rm_sapcode === r.emp_code).length
@@ -153,7 +150,6 @@ const getReports = async (req, res) => {
           emp_code: k.emp_code,
           emp_name: k.emp_name,
           level: k.level,
-          region: k.region,
           rm_sapcode: k.rm_sapcode,
           completion_percent: k.completion_percent,
           status: k.status
@@ -171,7 +167,6 @@ const getReports = async (req, res) => {
           emp_code: k.emp_code,
           emp_name: k.emp_name,
           level: k.level,
-          region: k.region,
           completion_percent: k.completion_percent,
           status: k.status
         }))
@@ -187,7 +182,6 @@ const getReports = async (req, res) => {
         emp_code: currentUser.emp_code,
         emp_name: currentUser.emp_name,
         level: currentUser.level,
-        region: currentUser.region
       },
       summary: {
         total_subordinates: totalSubordinates,
