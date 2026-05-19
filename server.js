@@ -7,11 +7,14 @@ const app = express();
 const PORT = process.env.PORT || 12000;
 
 // Middleware
-const corsOptions = {
-  origin: process.env.FRONTEND_URL || true,
-  credentials: true,
-};
-app.use(cors(corsOptions));
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  credentials: false,
+  allowedHeaders: ["Content-Type", "Authorization", "x-socket-id", "X-Requested-With"],
+  exposedHeaders: ["x-socket-id", "Authorization"]
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
