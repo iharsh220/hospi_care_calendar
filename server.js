@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const { startScheduler } = require('./services/scheduler');
 
 const app = express();
 const PORT = process.env.PORT || 12000;
@@ -63,10 +64,13 @@ app.listen(PORT, () => {
   console.log(`  GET    ${BASE_PATH}/admin/incomplete`);
   console.log(`  GET    ${BASE_PATH}/admin/users`);
   console.log(`  POST   ${BASE_PATH}/admin/users`);
+  console.log(`  POST   ${BASE_PATH}/admin/jobs/generate-assignments`);
+  console.log(`  POST   ${BASE_PATH}/admin/jobs/send-reminders`);
   console.log(`  GET    ${BASE_PATH}/field/my-events`);
   console.log(`  POST   ${BASE_PATH}/field/complete`);
   console.log(`  GET    ${BASE_PATH}/field/my-history`);
   console.log(`  GET    ${BASE_PATH}/field/reports\n`);
+  startScheduler();
 });
 
 module.exports = app;

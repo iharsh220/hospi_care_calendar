@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "sync-db": "node scripts/syncDb.js"
+    "sync-db": "node scripts/syncDb.js",
+    "migrate-schema": "node scripts/migrateSchema.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -16,6 +17,8 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.9.7",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^8.0.7",
     "sequelize": "^6.37.3"
   },
   "devDependencies": {

@@ -41,7 +41,7 @@ const requireField = async (req, res, next) => {
     }
     try {
       const fieldUser = await Organogram.findByPk(req.user.id, {
-        attributes: ['id', 'emp_code', 'emp_name', 'emailid', 'sap_code', 'level', 'division', 'hq', 'mobileno', 'is_admin', 'status']
+        attributes: ['id', 'emp_code', 'emp_name', 'emailid', 'sap_code', 'level', 'region', 'division', 'hq', 'mobileno', 'am_sapcode', 'rm_sapcode', 'zm_sapcode', 'is_admin', 'status']
       });
       if (!fieldUser) {
         return res.status(403).json({ success: false, message: 'Field user account is inactive' });

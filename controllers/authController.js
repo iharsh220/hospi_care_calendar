@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
+const { Op } = require('sequelize');
 const { Admin, Organogram } = require('../models');
+const { ACTIVE_STATUSES } = require('../services/assignmentService');
 
 // Super-admin static credentials (no database lookup)
 const SUPER_ADMIN = {
@@ -41,7 +43,9 @@ const login = async (req, res) => {
 
     // ── Field user login (email + sap_code) ──
     if (loginEmail && sap_code) {
-      const user = await Organogram.findOne({ where: { emailid: loginEmail, sap_code, status: 'active' } });
+      const user = await Organogram.findOne({
+        where: { emailid: loginEmail, sap_code, status: { [Op.in]: ACTIVE_STATUSES } }
+      });
       if (!user) {
         return res.status(401).json({ success: false, message: 'Invalid credentials' });
       }
@@ -69,7 +73,7 @@ const login = async (req, res) => {
           emailid: user.emailid,
           sap_code: user.sap_code,
           level: user.level,
-          level: user.level,
+          region: user.region,
           division: user.division,
           hq: user.hq,
           mobileno: user.mobileno,

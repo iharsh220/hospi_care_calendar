@@ -1,6 +1,6 @@
 # FieldTrack Backend — Node.js API
 
-Complete REST API for the FieldTrack Hospital Care Calendar Automation system.
+Complete REST API for the Hospital Care Calendar Automation system using Node.js, Express, Sequelize, and MySQL.
 
 ---
 
@@ -15,10 +15,14 @@ fieldtrack/
 │   └── database.js            # Sequelize + MySQL config
 ├── models/
 │   ├── index.js               # Model loader + associations
-│   ├── Admin.js               # Admin table
-│   ├── FieldUser.js           # Field users table
-│   ├── Event.js               # Events table
-│   └── EventAssignment.js     # User × Event × Month assignments
+│   ├── admin.js               # Optional admin table
+│   ├── organogram.js          # Existing organogram table for field users
+│   ├── event.js               # Events table
+│   └── eventAssignment.js     # User x Event x Month assignments
+├── services/
+│   ├── assignmentService.js   # Recurrence + carry-forward logic
+│   ├── mailService.js         # Reminder email delivery
+│   └── scheduler.js           # Monthly/Monday/Friday jobs
 ├── middlewares/
 │   ├── auth.js                # JWT auth + role guards
 │   └── upload.js              # Multer file upload
@@ -52,7 +56,16 @@ DB_USER=alembicdigilabs_codelab
 DB_PASSWORD=alembiccodelab
 DB_NAME=alembicdigilabs_hospital_care_automation
 JWT_SECRET=fieldtrack_jwt_secret_2025_alembic
-PORT=3000
+PORT=12000
+BASE_PATH=/hospitalcare/calendar/automation
+
+# Optional, required only for real emails
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASS=
+MAIL_FROM=
 ```
 
 ### 3. Sync database & seed default data
@@ -60,11 +73,16 @@ PORT=3000
 npm run sync-db
 ```
 This will:
-- Create all tables (admins, field_users, events, event_assignments)
-- Create default admin: `admin / admin123`
-- Create 4 sample field users
-- Create 6 default events (3 monthly + 3 specific)
-- Auto-assign all events to all users for the current month
+- Create missing Sequelize-managed tables (`events`, `event_assignments`, etc.)
+- Keep the existing `organogram` table as the source of field users
+- Create default admin seed if needed
+- Auto-assign active events to active organogram users for the current month
+
+If the project was already installed earlier, run the narrow schema update once:
+```bash
+npm run migrate-schema
+```
+This widens `events.assigned_to` and adds `organogram.region` only if needed.
 
 ### 4. Start the server
 ```bash
@@ -76,7 +94,7 @@ npm run dev        # development with auto-reload
 
 ## API Reference
 
-**Base URL:** `http://localhost:3000/hospitalcare/calendar/automation`
+**Base URL:** `http://localhost:12000/hospitalcare/calendar/automation`
 
 All protected routes require:
 ```
@@ -92,7 +110,7 @@ Authorization: Bearer <token>
 POST /login
 Content-Type: application/json
 
-{ "username": "admin", "password": "admin123" }
+{ "username": "admin", "password": "admin" }
 ```
 
 #### Login — Field User
@@ -114,10 +132,12 @@ Content-Type: application/json
 | GET | `/admin/events` | List all active events |
 | POST | `/admin/events` | Create a new event |
 | PUT | `/admin/events/:event_id` | Edit an event |
-| GET | `/admin/tracking?month=5&year=2025&filter=all&zone=all&search=` | Track all field users |
+| GET | `/admin/tracking?month=5&year=2025&filter=all&level=all&search=` | Track all field users |
 | GET | `/admin/incomplete?month=5&year=2025&filter=all` | View users with pending/overdue tasks |
-| GET | `/admin/users?search=&zone=all` | Field users directory |
+| GET | `/admin/users?search=&level=all` | Field users directory |
 | POST | `/admin/users` | Add a new field user |
+| POST | `/admin/jobs/generate-assignments` | Manually generate current/monthly assignments and carry-forwards |
+| POST | `/admin/jobs/send-reminders` | Manually send reminder emails for eligible pending events |
 
 #### Create Event Body
 ```json
@@ -126,23 +146,30 @@ Content-Type: application/json
   "description": "Monthly safety inspection",
   "type": "monthly",
   "date": null,
-  "assigned_to": "all",
+  "assigned_to": "BDM",
   "seven_day_reminder": false
 }
 ```
-> For `type: "specific"`, provide `"date": "2025-06-15"`
-> `assigned_to`: `"all"` or zone like `"North"`, `"South"`, `"East"`, `"West"`
+Supported `type` values: `monthly`, `bi_monthly`, `quarterly`, `half_yearly`, `yearly`, `specific`.
+
+For `type: "specific"` and date-based yearly events, provide `"date": "2026-06-15"`.
+
+`assigned_to` can be `all`, `everyone`, `BDM`, `KAM`, `RM`, `ZM`, or comma-separated values. `BDM` maps to `BDM - Government Account`; `KAM` maps to `AM`/`KAM`.
 
 #### Add Field User Body
 ```json
 {
-  "first_name": "Priya",
-  "last_name": "Nair",
-  "email": "priya.nair@company.com",
+  "emp_name": "Priya Nair",
+  "emailid": "priya.nair@company.com",
   "sap_code": "111367",
-  "zone": "North",
-  "employee_id": "EMP-101",
-  "mobile": "+91 99999 99999"
+  "emp_code": "EMP101",
+  "level": "AM",
+  "region": "West",
+  "division": "Hospital Care",
+  "hq": "Mumbai",
+  "mobileno": "9999999999",
+  "rm_sapcode": "222222",
+  "zm_sapcode": "333333"
 }
 ```
 
@@ -155,6 +182,7 @@ Content-Type: application/json
 | GET | `/field/my-events?month=5&year=2025` | My events for the month |
 | POST | `/field/complete` | Submit event completion with proof |
 | GET | `/field/my-history` | My completion history |
+| GET | `/field/reports?month=5&year=2025` | Hierarchy reports: ZM sees RM/AM, RM sees AM, field user sees self |
 
 #### Submit Completion (multipart/form-data)
 ```
@@ -174,8 +202,8 @@ proof_image  = <file: JPG/PNG/PDF, max 10MB>
 | Table | Purpose |
 |-------|---------|
 | `admins` | Admin login accounts |
-| `field_users` | Field employee profiles |
-| `events` | Event definitions (monthly / specific-date) |
+| `organogram` | Existing field employee profiles and hierarchy |
+| `events` | Event definitions and recurrence |
 | `event_assignments` | Per-user per-month event tracking with status |
 
 ### Event Assignment Status Values
@@ -191,8 +219,11 @@ proof_image  = <file: JPG/PNG/PDF, max 10MB>
 
 ## Key Business Logic
 
-- **Carry-forwards**: When a monthly event is not completed by month-end, a new `EventAssignment` is created in the next month with `is_carry_forward: true`
-- **Auto-assignment**: When a new event is created, it is automatically assigned to all matching users for the current month
-- **New user onboarding**: When a field user is added, all currently active events are automatically assigned to them
+- **Admin login**: Static credentials are `admin / admin`.
+- **Field login**: Field users log in with `emailid` and `sap_code` from `organogram`.
+- **Carry-forwards**: Missed recurring events are copied into the next month with `is_carry_forward: true`; if the current month also has a fresh due event, the user sees both tasks, so the count becomes 2.
+- **Auto-assignment**: Dashboards, field screens, reports, and jobs call the same assignment service to create due tasks.
+- **Hierarchy**: ZM sees users with matching `zm_sapcode`; RM sees users with matching `rm_sapcode`; AM/KAM/BDM users see their own data.
+- **Scheduler**: Assignment generation runs at 00:15 on the first day of each month. Reminder emails run every Monday and Friday at 09:00.
 - **Risk levels** (incomplete view): `high` = 3+ pending, `medium` = has carry-forward, `low` = otherwise
-- **7-day reminder**: Specific events within 7 days get `status: "remind"` and show a blue alert to the field user
+- **7-day reminder**: Specific and yearly date-based events become reminder-eligible from 7 days before their event date.

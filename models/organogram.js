@@ -23,6 +23,10 @@ const Organogram = sequelize.define('Organogram', {
     type: DataTypes.STRING(24),
     allowNull: true
   },
+  region: {
+    type: DataTypes.STRING(50),
+    allowNull: true
+  },
   status: {
     type: DataTypes.STRING(13),
     allowNull: true
@@ -40,7 +44,7 @@ const Organogram = sequelize.define('Organogram', {
     allowNull: true
   },
   emailid: {
-    type: DataTypes.STRING(35),
+    type: DataTypes.STRING(100),
     allowNull: true
   },
   doj: {

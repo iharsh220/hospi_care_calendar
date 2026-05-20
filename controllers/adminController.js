@@ -1,5 +1,12 @@
 const { Op, fn, col, literal } = require('sequelize');
 const { Organogram, Event, EventAssignment, sequelize } = require('../models');
+const {
+  activeUserWhere,
+  ensureAssignmentsForMonth,
+  matchesAssignedTo,
+  monthBounds
+} = require('../services/assignmentService');
+const { sendReminderEmails } = require('../services/mailService');
 
 // Helper: month label
 const monthLabel = (month, year) => {
@@ -14,21 +21,6 @@ const formatDate = (date) => {
   return d.toLocaleString('en-IN', { month: 'short', day: 'numeric' });
 };
 
-// Helper: check if event type is a periodic (recurring) type
-const isPeriodicType = (type) => ['monthly', 'bi_monthly', 'quarterly', 'half_yearly', 'yearly'].includes(type);
-
-// Helper: get the list of due months (1-12) for a given periodic type
-const getDueMonths = (type) => {
-  switch (type) {
-    case 'monthly':     return [1,2,3,4,5,6,7,8,9,10,11,12];
-    case 'bi_monthly':  return [1,3,5,7,9,11];       // every 2nd month (odd)
-    case 'quarterly':   return [1,4,7,10];            // Jan, Apr, Jul, Oct
-    case 'half_yearly': return [1,7];                  // Jan, Jul
-    case 'yearly':      return [1];                    // Jan only
-    default:            return [1,2,3,4,5,6,7,8,9,10,11,12];
-  }
-};
-
 // ─────────────────────────────────────────────
 // 3. GET /admin/dashboard
 // ─────────────────────────────────────────────
@@ -36,8 +28,9 @@ const getDashboard = async (req, res) => {
   try {
     const month = parseInt(req.query.month) || new Date().getMonth() + 1;
     const year = parseInt(req.query.year) || new Date().getFullYear();
+    await ensureAssignmentsForMonth(month, year);
 
-    const totalOrganograms = await Organogram.count({ where: { status: 'active' } });
+    const totalOrganograms = await Organogram.count({ where: activeUserWhere() });
     const totalActiveEvents = await Event.count({ where: { is_active: true } });
 
     // All assignments for this month
@@ -83,7 +76,7 @@ const getDashboard = async (req, res) => {
     }));
 
     // Level performance
-    const allActiveUsers = await Organogram.findAll({ where: { status: 'active' }, attributes: ['id', 'level'] });
+    const allActiveUsers = await Organogram.findAll({ where: activeUserWhere(), attributes: ['id', 'level'] });
     const levelMap = {};
     for (const u of allActiveUsers) {
       const lvl = u.level || 'Unassigned';
@@ -144,8 +137,7 @@ const getCalendar = async (req, res) => {
     const reminder_window_days = [...reminderSet].sort((a, b) => a - b);
 
     // Specific events this month
-    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-    const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
+    const { start: startDate, end: endDate } = monthBounds(month, year);
     const specificEvents = await Event.findAll({
       where: {
         type: 'specific',
@@ -179,7 +171,7 @@ const getCalendar = async (req, res) => {
 // ─────────────────────────────────────────────
 const getEvents = async (req, res) => {
   try {
-    const totalUsers = await Organogram.count({ where: { status: 'active' } });
+    const totalUsers = await Organogram.count({ where: activeUserWhere() });
     const events = await Event.findAll({ where: { is_active: true }, order: [['id', 'ASC']] });
 
     const formatted = events.map(e => {
@@ -223,78 +215,26 @@ const createEvent = async (req, res) => {
     if (!name || !type) {
       return res.status(400).json({ success: false, message: 'name and type are required' });
     }
-    if (type === 'specific' && !date) {
-      return res.status(400).json({ success: false, message: 'date is required for specific events' });
+    if (['specific', 'yearly'].includes(type) && !date) {
+      return res.status(400).json({ success: false, message: 'date is required for specific and yearly events' });
     }
 
     const event = await Event.create({
       name,
       description: description || null,
       type,
-      event_date: type === 'specific' ? date : null,
+      event_date: ['specific', 'yearly'].includes(type) ? (date || null) : null,
       assigned_to: assigned_to || 'all',
       seven_day_reminder: seven_day_reminder || false
     });
 
-    // Auto-assign to matching field users
-    await assignEventToUsers(event);
+    const now = new Date();
+    await ensureAssignmentsForMonth(now.getMonth() + 1, now.getFullYear());
 
     res.status(201).json({ success: true, message: 'Event created successfully', event_id: event.id });
   } catch (err) {
     console.error('Create event error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
-  }
-};
-
-// ─────────────────────────────────────────────
-// Helper: assign event to matching field users
-// ─────────────────────────────────────────────
-// Helper: check if a user matches the assigned_to filter
-// assigned_to can be 'all' or comma-separated values that match either:
-//   - level (e.g. 'AM', 'RM', 'BDM - Government Account', 'ZM')
-//   - hq/hospital name (e.g. 'KEM', 'Mumbai')
-const matchesAssignedTo = (user, assignedTo) => {
-  if (assignedTo === 'all') return true;
-  const values = assignedTo.split(',').map(v => v.trim());
-  return values.some(v => v === user.level || v === user.hq);
-};
-
-const assignEventToUsers = async (event) => {
-  const where = { status: 'active' };
-  const users = await Organogram.findAll({ where, attributes: ['id', 'level'] });
-
-  const now = new Date();
-  const month = now.getMonth() + 1;
-  const year = now.getFullYear();
-
-  // For periodic events, only assign in due months
-  if (isPeriodicType(event.type) && !getDueMonths(event.type).includes(month)) {
-    return; // skip assignment this month
-  }
-
-  // Determine status for specific events
-  let defaultStatus = 'pending';
-  if (event.type === 'specific' && event.event_date) {
-    const dueDate = new Date(event.event_date);
-    const diff = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
-    if (diff <= 7 && diff > 0) defaultStatus = 'remind';
-    else if (diff > 7) defaultStatus = 'upcoming';
-    else defaultStatus = 'pending';
-  }
-
-  const matchedUsers = event.assigned_to === 'all' ? users : users.filter(u => matchesAssignedTo(u, event.assigned_to));
-
-  const assignments = matchedUsers.map(u => ({
-    field_user_id: u.id,
-    event_id: event.id,
-    month,
-    year,
-    status: defaultStatus,
-    is_carry_forward: false
-  }));
-
-  if (assignments.length > 0) {
-    await EventAssignment.bulkCreate(assignments, { ignoreDuplicates: true });
   }
 };
 
@@ -313,10 +253,13 @@ const updateEvent = async (req, res) => {
       name: name || event.name,
       description: description !== undefined ? description : event.description,
       type: type || event.type,
-      event_date: type === 'specific' ? (date || event.event_date) : null,
+      event_date: ['specific', 'yearly'].includes(type || event.type) ? (date || event.event_date) : null,
       assigned_to: assigned_to || event.assigned_to,
       seven_day_reminder: seven_day_reminder !== undefined ? seven_day_reminder : event.seven_day_reminder
     });
+
+    const now = new Date();
+    await ensureAssignmentsForMonth(now.getMonth() + 1, now.getFullYear());
 
     res.json({ success: true, message: 'Event updated successfully' });
   } catch (err) {
@@ -332,11 +275,12 @@ const getTracking = async (req, res) => {
   try {
     const month = parseInt(req.query.month) || new Date().getMonth() + 1;
     const year = parseInt(req.query.year) || new Date().getFullYear();
+    await ensureAssignmentsForMonth(month, year);
     const search = req.query.search || '';
     const filter = req.query.filter || 'all';
     const level = req.query.level || 'all';
 
-    const userWhere = { status: 'active' };
+    const userWhere = activeUserWhere();
     if (level !== 'all') userWhere.level = level;
     if (search) {
       userWhere[Op.or] = [
@@ -425,10 +369,11 @@ const getIncomplete = async (req, res) => {
   try {
     const month = parseInt(req.query.month) || new Date().getMonth() + 1;
     const year = parseInt(req.query.year) || new Date().getFullYear();
+    await ensureAssignmentsForMonth(month, year);
     const search = req.query.search || '';
     const filter = req.query.filter || 'all';
 
-    const userWhere = { status: 'active' };
+    const userWhere = activeUserWhere();
     if (search) {
       userWhere[Op.or] = [
         { emp_name: { [Op.like]: `%${search}%` } }
@@ -494,7 +439,7 @@ const getUsers = async (req, res) => {
     const month = new Date().getMonth() + 1;
     const year = new Date().getFullYear();
 
-    const where = { status: 'active' };
+    const where = activeUserWhere();
     if (level !== 'all') where.level = level;
     if (search) {
       where[Op.or] = [
@@ -554,7 +499,7 @@ const getUsers = async (req, res) => {
 // ─────────────────────────────────────────────
 const createUser = async (req, res) => {
   try {
-    const { emp_name, emailid, sap_code, emp_code, mobileno, level, division, hq, doj, am_sapcode, rm_sapcode, zm_sapcode } = req.body;
+    const { emp_name, emailid, sap_code, emp_code, mobileno, level, region, division, hq, doj, am_sapcode, rm_sapcode, zm_sapcode } = req.body;
 
     if (!emp_name || !emailid || !sap_code || !emp_code || !level) {
       return res.status(400).json({ success: false, message: 'emp_name, emailid, sap_code, emp_code, and level are required' });
@@ -567,34 +512,10 @@ const createUser = async (req, res) => {
       return res.status(409).json({ success: false, message: 'User with same emailid, SAP code, or emp_code already exists' });
     }
 
-    const user = await Organogram.create({ emp_name, emailid, sap_code, emp_code, mobileno, level, division, hq, doj, am_sapcode, rm_sapcode, zm_sapcode });
+    const user = await Organogram.create({ emp_name, emailid, sap_code, emp_code, mobileno, level, region, division, hq, doj, am_sapcode, rm_sapcode, zm_sapcode });
 
-    // Auto-assign existing active events to the new user
-    // assigned_to can be 'all' or comma-separated levels like 'BDM - Government Account,RM'
-    const assignedLevels = level === 'all' ? [] : level.split(',').map(l => l.trim());
-    const eventWhere = {
-      is_active: true,
-      [Op.or]: [
-        { assigned_to: 'all' },
-        ...(assignedLevels.length > 0 ? assignedLevels.map(l => ({ assigned_to: l })) : [])
-      ]
-    };
-    const events = await Event.findAll({ where: eventWhere });
-
-    if (events.length > 0) {
-      const now = new Date();
-      const month = now.getMonth() + 1;
-      const year = now.getFullYear();
-      const assignments = events.map(e => ({
-        field_user_id: user.id,
-        event_id: e.id,
-        month,
-        year,
-        status: 'pending',
-        is_carry_forward: false
-      }));
-      await EventAssignment.bulkCreate(assignments, { ignoreDuplicates: true });
-    }
+    const now = new Date();
+    await ensureAssignmentsForMonth(now.getMonth() + 1, now.getFullYear());
 
     res.status(201).json({ success: true, message: 'User added successfully', user_id: user.id });
   } catch (err) {
@@ -603,79 +524,30 @@ const createUser = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────
-// Carry-Forward Logic
-// For monthly events: if not done in month N, carry to N+1, then N+2, etc.
-// For bi_monthly/quarterly/half_yearly/yearly: missed events are ignored
-// ─────────────────────────────────────────────────────────
-const carryForwardAssignments = async (req, res) => {
+const generateAssignments = async (req, res) => {
   try {
     const now = new Date();
-    const currentMonth = now.getMonth() + 1;
-    const currentYear = now.getFullYear();
+    const month = parseInt(req.body.month || req.query.month) || now.getMonth() + 1;
+    const year = parseInt(req.body.year || req.query.year) || now.getFullYear();
+    const result = await ensureAssignmentsForMonth(month, year);
 
-    // Previous month (handle year rollover)
-    const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
-    const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
-
-    // Find all monthly event assignments from previous month that are NOT done
-    const pendingAssignments = await EventAssignment.findAll({
-      where: {
-        month: prevMonth,
-        year: prevYear,
-        status: { [Op.ne]: 'done' }
-      },
-      include: [{ model: Event, as: 'event', attributes: ['id', 'name', 'type'] }]
-    });
-
-    // Filter: monthly, bi_monthly, quarterly, half_yearly get carried forward (yearly does NOT)
-    const toCarry = pendingAssignments.filter(a => a.event && ['monthly', 'bi_monthly', 'quarterly', 'half_yearly'].includes(a.event.type));
-
-    let carriedCount = 0;
-    for (const prev of toCarry) {
-      // Check if a carry-forward already exists for this user+event in current month
-      const existing = await EventAssignment.findOne({
-        where: {
-          field_user_id: prev.field_user_id,
-          event_id: prev.event_id,
-          month: currentMonth,
-          year: currentYear,
-          is_carry_forward: true
-        }
-      });
-
-      if (existing) continue; // already carried forward this month
-
-      const newCarryCount = (prev.carry_count || 0) + 1;
-
-      await EventAssignment.create({
-        field_user_id: prev.field_user_id,
-        event_id: prev.event_id,
-        month: currentMonth,
-        year: currentYear,
-        status: 'carry',
-        is_carry_forward: true,
-        carry_count: newCarryCount,
-        original_month: prev.original_month || prevMonth,
-        original_year: prev.original_year || prevYear
-      });
-      carriedCount++;
-    }
-
-    const monthLabel = new Date(currentYear, currentMonth - 1, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
-    const prevMonthLabel = new Date(prevYear, prevMonth - 1, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
-
-    res.json({
-      success: true,
-      message: 'Carry-forward completed',
-      from_month: prevMonthLabel,
-      to_month: monthLabel,
-      events_checked: toCarry.length,
-      carried_forward: carriedCount,
-      skipped: toCarry.length - carriedCount
-    });
+    res.json({ success: true, message: 'Assignments generated successfully', ...result });
   } catch (err) {
-    console.error('Carry-forward error:', err);
+    console.error('Generate assignments error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+const sendReminderJob = async (req, res) => {
+  try {
+    const now = new Date();
+    const month = parseInt(req.body.month || req.query.month) || now.getMonth() + 1;
+    const year = parseInt(req.body.year || req.query.year) || now.getFullYear();
+    const result = await sendReminderEmails(month, year);
+
+    res.json({ success: true, message: 'Reminder job completed', month, year, ...result });
+  } catch (err) {
+    console.error('Send reminder job error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
@@ -689,5 +561,7 @@ module.exports = {
   getTracking,
   getIncomplete,
   getUsers,
-  createUser
+  createUser,
+  generateAssignments,
+  sendReminderJob
 };

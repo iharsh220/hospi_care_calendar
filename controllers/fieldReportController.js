@@ -1,5 +1,6 @@
 const { Op, fn, col } = require('sequelize');
 const { Organogram, EventAssignment, Event } = require('../models');
+const { activeUserWhere, ensureAssignmentsForMonth } = require('../services/assignmentService');
 
 // ─────────────────────────────────────────────────────────
 // GET /field/reports
@@ -18,18 +19,18 @@ const getReports = async (req, res) => {
     const year = parseInt(req.query.year) || new Date().getFullYear();
     const search = req.query.search || '';
     const statusFilter = req.query.status || 'all';
+    await ensureAssignmentsForMonth(month, year);
 
     // ── Build WHERE clause for subordinate users ──
-    let subordinateWhere = { status: 'active' };
+    let subordinateWhere = activeUserWhere();
 
     if (level === 'ZM') {
       // ZM sees everyone whose zm_sapcode matches this ZM's sap_code
       subordinateWhere.zm_sapcode = sapCode;
     } else if (level === 'RM') {
-      // RM sees KAMs whose rm_sapcode matches this RM's sap_code
+      // RM sees AM/KAM users whose rm_sapcode matches this RM's sap_code
       subordinateWhere.rm_sapcode = sapCode;
     } else {
-      // KAM sees only themselves
       subordinateWhere.id = currentUser.id;
     }
 
@@ -50,10 +51,10 @@ const getReports = async (req, res) => {
         as: 'assignments',
         where: { month, year },
         required: false,
-        include: [{ model: Event, as: 'event', attributes: ['name', 'type'] }]
+        include: [{ model: Event, as: 'event', attributes: ['name', 'type', 'event_date'] }]
       }],
       order: [
-        [fn('FIELD', col('level'), 'ZM', 'RM', 'KAM')],
+        [fn('FIELD', col('level'), 'ZM', 'RM', 'AM', 'KAM', 'BDM - Government Account')],
         ['emp_name', 'ASC']
       ]
     });
@@ -92,6 +93,7 @@ const getReports = async (req, res) => {
 
       return {
         id: u.id,
+        sap_code: u.sap_code,
         emp_code: u.emp_code,
         emp_name: u.emp_name,
         level: u.level,
@@ -131,7 +133,7 @@ const getReports = async (req, res) => {
     let organogram = null;
     if (level === 'ZM') {
       const rms = reports.filter(r => r.level === 'RM');
-      const kams = reports.filter(r => r.level === 'KAM');
+      const kams = reports.filter(r => ['AM', 'KAM', 'BDM - Government Account'].includes(r.level));
       organogram = {
         zm: {
           emp_code: currentUser.emp_code,
@@ -144,7 +146,7 @@ const getReports = async (req, res) => {
           level: r.level,
           completion_percent: r.completion_percent,
           status: r.status,
-          kam_count: kams.filter(k => k.rm_sapcode === r.sap_code || k.rm_sapcode === r.emp_code).length
+          kam_count: kams.filter(k => String(k.rm_sapcode) === String(r.sap_code || r.emp_code)).length
         })),
         kams: kams.map(k => ({
           emp_code: k.emp_code,
@@ -156,7 +158,7 @@ const getReports = async (req, res) => {
         }))
       };
     } else if (level === 'RM') {
-      const kams = reports.filter(r => r.level === 'KAM');
+      const kams = reports.filter(r => ['AM', 'KAM', 'BDM - Government Account'].includes(r.level));
       organogram = {
         rm: {
           emp_code: currentUser.emp_code,

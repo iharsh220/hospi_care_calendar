@@ -32,12 +32,21 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin\"\n}"
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
             },
             "description": "Super-admin login — uses static credentials (username: `admin`, password: `admin`). No database lookup. Returns a JWT token stored in `adminToken`."
           },
@@ -68,8 +77,12 @@
             },
             "url": {
               "raw": "{{baseUrl}}/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
             },
             "description": "Field-user login — authenticates against the `field_users` table using `emailid` and `sap_code`. Returns a JWT with the user's `level` (ZM | RM | KAM) embedded for hierarchy checks."
           },
@@ -108,11 +121,22 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/dashboard?month=5&year=2026",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "dashboard"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "dashboard"
+              ],
               "query": [
-                { "key": "month", "value": "5" },
-                { "key": "year", "value": "2026" }
+                {
+                  "key": "month",
+                  "value": "5"
+                },
+                {
+                  "key": "year",
+                  "value": "2026"
+                }
               ]
             }
           }
@@ -130,11 +154,22 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/calendar?month=5&year=2026",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "calendar"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "calendar"
+              ],
               "query": [
-                { "key": "month", "value": "5" },
-                { "key": "year", "value": "2026" }
+                {
+                  "key": "month",
+                  "value": "5"
+                },
+                {
+                  "key": "year",
+                  "value": "2026"
+                }
               ]
             }
           }
@@ -152,8 +187,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/events",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "events"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "events"
+              ]
             }
           }
         },
@@ -167,16 +207,30 @@
                 "value": "Bearer {{adminToken}}",
                 "type": "text"
               },
-              { "key": "Content-Type", "value": "application/json", "type": "text" }
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Doctor Visit — Cardiology\",\n  \"description\": \"Monthly cardiology check visit\",\n  \"type\": \"monthly\",\n  \"assigned_to\": \"all\",\n  \"seven_day_reminder\": true\n}"
+              "raw": "{\n  \"name\": \"Monthly BDM Hospital Visit\",\n  \"description\": \"BDM users must complete this event every month.\",\n  \"type\": \"monthly\",\n  \"date\": null,\n  \"assigned_to\": \"BDM\",\n  \"seven_day_reminder\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/admin/events",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "events"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "events"
+              ]
             }
           }
         },
@@ -190,16 +244,31 @@
                 "value": "Bearer {{adminToken}}",
                 "type": "text"
               },
-              { "key": "Content-Type", "value": "application/json", "type": "text" }
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Doctor Visit — Cardiology\",\n  \"type\": \"monthly\",\n  \"assigned_to\": \"all\",\n  \"seven_day_reminder\": true\n}"
+              "raw": "{\n  \"name\": \"Yearly Compliance Event\",\n  \"description\": \"One yearly date-based event with 7 day reminders.\",\n  \"type\": \"yearly\",\n  \"date\": \"2026-06-15\",\n  \"assigned_to\": \"all\",\n  \"seven_day_reminder\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/admin/events/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "events", "1"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "events",
+                "1"
+              ]
             }
           }
         },
@@ -216,11 +285,22 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/tracking?month=5&year=2026",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "tracking"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tracking"
+              ],
               "query": [
-                { "key": "month", "value": "5" },
-                { "key": "year", "value": "2026" }
+                {
+                  "key": "month",
+                  "value": "5"
+                },
+                {
+                  "key": "year",
+                  "value": "2026"
+                }
               ]
             }
           }
@@ -238,11 +318,22 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/incomplete?month=5&year=2026",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "incomplete"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "incomplete"
+              ],
               "query": [
-                { "key": "month", "value": "5" },
-                { "key": "year", "value": "2026" }
+                {
+                  "key": "month",
+                  "value": "5"
+                },
+                {
+                  "key": "year",
+                  "value": "2026"
+                }
               ]
             }
           }
@@ -260,8 +351,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/admin/users",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "users"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users"
+              ]
             }
           }
         },
@@ -275,18 +371,100 @@
                 "value": "Bearer {{adminToken}}",
                 "type": "text"
               },
-              { "key": "Content-Type", "value": "application/json", "type": "text" }
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"emp_name\": \"Rahul Sharma\",\n  \"emailid\": \"rahul@hospitalcare.com\",\n  \"sap_code\": \"KAM003\",\n  \"emp_code\": \"EMP003\",\n  \"level\": \"KAM\",\n  \"region\": \"North\",\n  \"division\": \"Cardiology\",\n  \"hq\": \"Delhi\",\n  \"mobileno\": \"9876543210\",\n  \"doj\": \"2025-01-15\",\n  \"rm_sapcode\": \"RM001\",\n  \"zm_sapcode\": \"ZM001\"\n}"
+              "raw": "{\n  \"emp_name\": \"Priya Nair\",\n  \"emailid\": \"priya.nair@company.com\",\n  \"sap_code\": 111367,\n  \"emp_code\": 101,\n  \"level\": \"AM\",\n  \"region\": \"West\",\n  \"division\": \"Hospital Care\",\n  \"hq\": \"Mumbai\",\n  \"mobileno\": \"9999999999\",\n  \"doj\": \"2026-05-20\",\n  \"am_sapcode\": null,\n  \"rm_sapcode\": 222222,\n  \"zm_sapcode\": 333333\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/admin/users",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "users"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users"
+              ]
             }
           }
+        },
+        {
+          "name": "Generate Assignments / Carry Forward",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"month\": 5,\n  \"year\": 2026\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/jobs/generate-assignments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "jobs",
+                "generate-assignments"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Send Reminder Emails",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"month\": 5,\n  \"year\": 2026\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/jobs/send-reminders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "jobs",
+                "send-reminders"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     },
@@ -307,11 +485,22 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/field/my-events?month=5&year=2026",
-              "host": ["{{baseUrl}}"],
-              "path": ["field", "my-events"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "field",
+                "my-events"
+              ],
               "query": [
-                { "key": "month", "value": "5" },
-                { "key": "year", "value": "2026" }
+                {
+                  "key": "month",
+                  "value": "5"
+                },
+                {
+                  "key": "year",
+                  "value": "2026"
+                }
               ]
             }
           }
@@ -330,16 +519,37 @@
             "body": {
               "mode": "formdata",
               "formdata": [
-                { "key": "event_id", "value": "1", "type": "text" },
-                { "key": "completed_on", "value": "2026-05-15", "type": "text" },
-                { "key": "notes", "value": "Visit completed successfully", "type": "text" },
-                { "key": "proof_image", "type": "file", "src": [] }
+                {
+                  "key": "event_id",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "completed_on",
+                  "value": "2026-05-15",
+                  "type": "text"
+                },
+                {
+                  "key": "notes",
+                  "value": "Visit completed successfully",
+                  "type": "text"
+                },
+                {
+                  "key": "proof_image",
+                  "type": "file",
+                  "src": []
+                }
               ]
             },
             "url": {
               "raw": "{{baseUrl}}/field/complete",
-              "host": ["{{baseUrl}}"],
-              "path": ["field", "complete"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "field",
+                "complete"
+              ]
             }
           }
         },
@@ -356,8 +566,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/field/my-history",
-              "host": ["{{baseUrl}}"],
-              "path": ["field", "my-history"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "field",
+                "my-history"
+              ]
             }
           }
         },
@@ -374,11 +589,22 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/field/reports?month=5&year=2026",
-              "host": ["{{baseUrl}}"],
-              "path": ["field", "reports"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "field",
+                "reports"
+              ],
               "query": [
-                { "key": "month", "value": "5" },
-                { "key": "year", "value": "2026" }
+                {
+                  "key": "month",
+                  "value": "5"
+                },
+                {
+                  "key": "year",
+                  "value": "2026"
+                }
               ]
             }
           },
@@ -396,8 +622,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/",
-              "host": ["{{baseUrl}}"],
-              "path": ["", ""]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "",
+                ""
+              ]
             }
           }
         }

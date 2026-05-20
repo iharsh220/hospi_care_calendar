@@ -21,14 +21,14 @@ const Event = sequelize.define('Event', {
     allowNull: false,
     defaultValue: 'monthly'
   },
-  // Only for type='specific', format YYYY-MM-DD
+  // For type='specific' and yearly date-based reminders, format YYYY-MM-DD
   event_date: {
     type: DataTypes.DATEONLY,
     allowNull: true
   },
-  // 'all' or level name like 'BDM - Government Account', 'AM', 'RM', 'ZM'
+  // 'all' or comma-separated targets like BDM,KAM,RM,ZM
   assigned_to: {
-    type: DataTypes.STRING(20),
+    type: DataTypes.STRING(100),
     allowNull: false,
     defaultValue: 'all'
   },
