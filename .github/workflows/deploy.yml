@@ -40,7 +40,7 @@ jobs:
             pm2 describe "$PM2_APP_NAME" > /dev/null
 
             if [ $? -eq 0 ]; then
-              pm2 restart "$PM2_APP_NAME"
+              pm2 restart "$PM2_APP_NAME" --update-env
             else
               pm2 start server.js --name "$PM2_APP_NAME"
             fi
