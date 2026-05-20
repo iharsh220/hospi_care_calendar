@@ -14,7 +14,7 @@ function signToken(payload) {
 async function login(req, res) {
   try {
     const { username, password, email, sap_code } = req.body;
-
+    console.log(username, password, email, sap_code);
     // ── Admin login ──
     if (username !== undefined || (email === undefined && sap_code === undefined)) {
       if (
