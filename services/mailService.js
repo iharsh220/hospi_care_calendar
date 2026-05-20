@@ -29,53 +29,108 @@ async function sendMail({ to, subject, html }) {
   }
 }
 
-function buildReminderHtml(userName, eventName, dueInfo) {
+function buildEmailLayout({ title, subtitle, accentColor, lightColor, borderColor, bodyHtml }) {
   return `
-  <div style="font-family:DM Sans,Arial,sans-serif;max-width:560px;margin:auto;background:#f0f4f8;border-radius:12px;overflow:hidden">
-    <div style="background:linear-gradient(135deg,#0f172a,#1e56a0);padding:24px 32px;text-align:center">
-      <h2 style="color:#fff;margin:0;font-size:20px">FieldTrack</h2>
-      <p style="color:#93c5fd;margin:4px 0 0;font-size:13px">Field Calendar Reminder</p>
-    </div>
-    <div style="padding:28px 32px;background:#fff">
-      <p style="color:#0f172a;font-size:15px">Hi <strong>${userName}</strong>,</p>
-      <p style="color:#475569;font-size:13px;line-height:1.6">
-        This is a reminder that the following event is due soon:
-      </p>
-      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:16px;margin:18px 0">
-        <p style="margin:0;font-size:15px;font-weight:600;color:#1e3a8a">📋 ${eventName}</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#1d4ed8">${dueInfo}</p>
-      </div>
-      <p style="color:#475569;font-size:12px;line-height:1.6">
-        Please log in to FieldTrack and mark the event as complete with a proof image before the deadline.
-      </p>
-    </div>
-    <div style="background:#f8fafc;padding:14px 32px;text-align:center;font-size:11px;color:#94a3b8">
-      FieldTrack · Hospital Care Calendar Automation · Alembic Pharmaceuticals
-    </div>
+  <div style="margin:0;padding:0;background:#eef2f7;font-family:Arial,Helvetica,sans-serif;color:#172033">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#eef2f7">
+      <tr>
+        <td align="center" style="padding:28px 12px">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;max-width:600px;background:#ffffff;border:1px solid #d9e2ec;border-radius:12px;overflow:hidden;box-shadow:0 8px 24px rgba(15,23,42,0.08)">
+            <tr>
+              <td style="background:${accentColor};padding:26px 32px;text-align:left">
+                <p style="margin:0 0 8px;font-size:11px;line-height:1.2;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;color:#dbeafe">FieldTrack</p>
+                <h1 style="margin:0;font-size:22px;line-height:1.25;font-weight:700;color:#ffffff">${title}</h1>
+                <p style="margin:8px 0 0;font-size:13px;line-height:1.5;color:#e0f2fe">${subtitle}</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:30px 32px 28px;background:#ffffff">
+                ${bodyHtml}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 32px;background:#f8fafc;border-top:1px solid #e5e7eb;text-align:center">
+                <p style="margin:0;font-size:11px;line-height:1.5;color:#64748b">FieldTrack | Hospital Care Calendar Automation | Alembic Pharmaceuticals</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
   </div>`;
 }
 
-function buildCarryForwardHtml(userName, eventName, month) {
+function buildInfoBox({ accentColor, lightColor, borderColor, label, eventName, detail }) {
   return `
-  <div style="font-family:DM Sans,Arial,sans-serif;max-width:560px;margin:auto;background:#f0f4f8;border-radius:12px;overflow:hidden">
-    <div style="background:linear-gradient(135deg,#92400e,#b45309);padding:24px 32px;text-align:center">
-      <h2 style="color:#fff;margin:0;font-size:20px">FieldTrack</h2>
-      <p style="color:#fde68a;margin:4px 0 0;font-size:13px">Carry-Forward Alert</p>
-    </div>
-    <div style="padding:28px 32px;background:#fff">
-      <p style="color:#0f172a;font-size:15px">Hi <strong>${userName}</strong>,</p>
-      <p style="color:#475569;font-size:13px;line-height:1.6">
-        You did not complete the following event last month. It has been <strong>carried forward</strong> to ${month}:
-      </p>
-      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px;margin:18px 0">
-        <p style="margin:0;font-size:15px;font-weight:600;color:#92400e">↻ ${eventName}</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#b45309">This is now added to your ${month} tasks. Please complete it at the earliest.</p>
-      </div>
-    </div>
-    <div style="background:#f8fafc;padding:14px 32px;text-align:center;font-size:11px;color:#94a3b8">
-      FieldTrack · Hospital Care Calendar Automation · Alembic Pharmaceuticals
-    </div>
-  </div>`;
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:22px 0;background:${lightColor};border:1px solid ${borderColor};border-radius:10px">
+      <tr>
+        <td style="padding:18px 18px 16px;border-left:5px solid ${accentColor};border-radius:10px">
+          <p style="margin:0 0 8px;font-size:11px;line-height:1.2;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:${accentColor}">${label}</p>
+          <p style="margin:0;font-size:17px;line-height:1.35;font-weight:700;color:#0f172a">${eventName}</p>
+          <p style="margin:8px 0 0;font-size:13px;line-height:1.55;color:#475569">${detail}</p>
+        </td>
+      </tr>
+    </table>`;
+}
+
+function buildReminderHtml(userName, eventName, dueInfo) {
+  return buildEmailLayout({
+    title: 'Field Calendar Reminder',
+    subtitle: 'A pending activity needs your attention.',
+    accentColor: '#1e56a0',
+    lightColor: '#eff6ff',
+    borderColor: '#bfdbfe',
+    bodyHtml: `
+      <p style="margin:0;font-size:15px;line-height:1.6;color:#334155">Hi <strong style="color:#0f172a">${userName}</strong>,</p>
+      <p style="margin:12px 0 0;font-size:14px;line-height:1.65;color:#475569">This is a reminder that the following event is due soon.</p>
+      ${buildInfoBox({
+        accentColor: '#1e56a0',
+        lightColor: '#eff6ff',
+        borderColor: '#bfdbfe',
+        label: 'Upcoming Event',
+        eventName,
+        detail: dueInfo,
+      })}
+      <p style="margin:0;font-size:13px;line-height:1.65;color:#475569">Please log in to FieldTrack and mark the event as complete with a proof image before the deadline.</p>
+      <table role="presentation" cellspacing="0" cellpadding="0" style="margin-top:22px;border-collapse:collapse">
+        <tr>
+          <td style="background:#1e56a0;border-radius:7px">
+            <span style="display:inline-block;padding:11px 18px;font-size:13px;font-weight:700;color:#ffffff">Open FieldTrack</span>
+          </td>
+        </tr>
+      </table>
+    `,
+  });
+}
+
+function buildCarryForwardHtml(userName, eventName, month) {
+  return buildEmailLayout({
+    title: 'Carry-Forward Alert',
+    subtitle: `This item has moved into ${month}.`,
+    accentColor: '#b45309',
+    lightColor: '#fffbeb',
+    borderColor: '#fde68a',
+    bodyHtml: `
+      <p style="margin:0;font-size:15px;line-height:1.6;color:#334155">Hi <strong style="color:#0f172a">${userName}</strong>,</p>
+      <p style="margin:12px 0 0;font-size:14px;line-height:1.65;color:#475569">You did not complete the following event last month. It has been carried forward to <strong style="color:#92400e">${month}</strong>.</p>
+      ${buildInfoBox({
+        accentColor: '#b45309',
+        lightColor: '#fffbeb',
+        borderColor: '#fde68a',
+        label: 'Carried Forward',
+        eventName,
+        detail: `This is now added to your ${month} tasks. Please complete it at the earliest.`,
+      })}
+      <p style="margin:0;font-size:13px;line-height:1.65;color:#475569">Complete this activity from your FieldTrack task list to clear the pending status.</p>
+      <table role="presentation" cellspacing="0" cellpadding="0" style="margin-top:22px;border-collapse:collapse">
+        <tr>
+          <td style="background:#b45309;border-radius:7px">
+            <span style="display:inline-block;padding:11px 18px;font-size:13px;font-weight:700;color:#ffffff">Review Task</span>
+          </td>
+        </tr>
+      </table>
+    `,
+  });
 }
 
 module.exports = { sendMail, buildReminderHtml, buildCarryForwardHtml };
