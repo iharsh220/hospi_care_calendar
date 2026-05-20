@@ -588,7 +588,85 @@ const createUser = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────
+// Carry-Forward Logic
+// For monthly events: if not done in month N, carry to N+1, then N+2, etc.
+// For bi_monthly/quarterly/half_yearly/yearly: missed events are ignored
+// ─────────────────────────────────────────────────────────
+const carryForwardAssignments = async (req, res) => {
+  try {
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+
+    // Previous month (handle year rollover)
+    const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+    const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+
+    // Find all monthly event assignments from previous month that are NOT done
+    const pendingAssignments = await EventAssignment.findAll({
+      where: {
+        month: prevMonth,
+        year: prevYear,
+        status: { [Op.ne]: 'done' }
+      },
+      include: [{ model: Event, as: 'event', attributes: ['id', 'name', 'type'] }]
+    });
+
+    // Filter: monthly, bi_monthly, quarterly, half_yearly get carried forward (yearly does NOT)
+    const toCarry = pendingAssignments.filter(a => a.event && ['monthly', 'bi_monthly', 'quarterly', 'half_yearly'].includes(a.event.type));
+
+    let carriedCount = 0;
+    for (const prev of toCarry) {
+      // Check if a carry-forward already exists for this user+event in current month
+      const existing = await EventAssignment.findOne({
+        where: {
+          field_user_id: prev.field_user_id,
+          event_id: prev.event_id,
+          month: currentMonth,
+          year: currentYear,
+          is_carry_forward: true
+        }
+      });
+
+      if (existing) continue; // already carried forward this month
+
+      const newCarryCount = (prev.carry_count || 0) + 1;
+
+      await EventAssignment.create({
+        field_user_id: prev.field_user_id,
+        event_id: prev.event_id,
+        month: currentMonth,
+        year: currentYear,
+        status: 'carry',
+        is_carry_forward: true,
+        carry_count: newCarryCount,
+        original_month: prev.original_month || prevMonth,
+        original_year: prev.original_year || prevYear
+      });
+      carriedCount++;
+    }
+
+    const monthLabel = new Date(currentYear, currentMonth - 1, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+    const prevMonthLabel = new Date(prevYear, prevMonth - 1, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+
+    res.json({
+      success: true,
+      message: 'Carry-forward completed',
+      from_month: prevMonthLabel,
+      to_month: monthLabel,
+      events_checked: toCarry.length,
+      carried_forward: carriedCount,
+      skipped: toCarry.length - carriedCount
+    });
+  } catch (err) {
+    console.error('Carry-forward error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 module.exports = {
+  carryForwardAssignments,
   getDashboard,
   getCalendar,
   getEvents,

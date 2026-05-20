@@ -89,6 +89,8 @@ const getMyEvents = async (req, res) => {
         type: e.type,
         status: a.status,
         due_date: e.event_date || null,
+        carry_count: a.carry_count || 0,
+        is_carry_forward: a.is_carry_forward,
         ...(a.completed_on && { completed_on: a.completed_on })
       };
     });

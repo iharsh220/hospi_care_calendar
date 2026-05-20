@@ -57,6 +57,11 @@ const EventAssignment = sequelize.define('EventAssignment', {
   original_year: {
     type: DataTypes.INTEGER,
     allowNull: true
+  },
+  // How many times this assignment has been carried forward
+  carry_count: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
   }
 }, {
   tableName: 'event_assignments',
