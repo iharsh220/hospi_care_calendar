@@ -13,7 +13,7 @@ function signToken(payload) {
 async function login(req, res) {
   try {
     const { username, password, email, sap_code } = req.body;
-    console.log(username, password, process.env.ADMIN_USERNAME,process.env.ADMIN_PASSWORD);
+    console.log(username, password, process.env.ADMIN_USERNAME, process.env.ADMIN_PASSWORD);
     // ── Admin login ──
     if (username !== undefined || (email === undefined && sap_code === undefined)) {
       if (

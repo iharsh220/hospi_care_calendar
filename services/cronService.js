@@ -4,11 +4,16 @@ const { Event, EventAssignment, Organogram } = require('../models');
 const { sendMail, buildReminderHtml } = require('./mailService');
 const { generateAssignmentsForPeriod, processCarryForwards } = require('./assignmentService');
 
+const CRON_TIMEZONE = process.env.CRON_TIMEZONE || 'Asia/Kolkata';
+const cronOptions = { timezone: CRON_TIMEZONE };
+
+console.log(`[CRON] Service loaded. Timezone: ${CRON_TIMEZONE}`);
+
 // ─────────────────────────────────────────
 //  EVERY MONDAY & FRIDAY: send reminders for recurring events
 //  "0 8 * * 1,5" = 8 AM every Monday and Friday
 // ─────────────────────────────────────────
-cron.schedule('0 8 * * 1,5', async () => {
+async function runRecurringReminders() {
   console.log('[CRON] Running recurring event email reminders...');
   try {
     const now = new Date();
@@ -56,12 +61,15 @@ cron.schedule('0 8 * * 1,5', async () => {
   } catch (err) {
     console.error('[CRON] Reminder error:', err.message);
   }
-});
+}
+
+cron.schedule('0 8 * * 1,5', runRecurringReminders, cronOptions);
+console.log('[CRON] Scheduled recurring reminders: 0 8 * * 1,5');
 
 // ─────────────────────────────────────────
 //  DAILY: 7-day advance reminder for yearly events
 // ─────────────────────────────────────────
-cron.schedule('0 9 * * *', async () => {
+async function runYearlyAdvanceReminders() {
   console.log('[CRON] Running 7-day advance reminder for yearly events...');
   try {
     const now = new Date();
@@ -110,12 +118,15 @@ cron.schedule('0 9 * * *', async () => {
   } catch (err) {
     console.error('[CRON] 7-day reminder error:', err.message);
   }
-});
+}
+
+cron.schedule('0 9 * * *', runYearlyAdvanceReminders, cronOptions);
+console.log('[CRON] Scheduled 7-day advance reminders: 0 9 * * *');
 
 // ─────────────────────────────────────────
 //  1st of each month: generate assignments + carry-forwards
 // ─────────────────────────────────────────
-cron.schedule('0 0 1 * *', async () => {
+async function runMonthStart() {
   console.log('[CRON] Running month-start: generating assignments and carry-forwards...');
   try {
     const now = new Date();
@@ -134,6 +145,15 @@ cron.schedule('0 0 1 * *', async () => {
   } catch (err) {
     console.error('[CRON] Month-start cron error:', err.message);
   }
-});
+}
 
-module.exports = {};
+cron.schedule('0 0 1 * *', runMonthStart, cronOptions);
+console.log('[CRON] Scheduled month-start processing: 0 0 1 * *');
+
+if (process.env.CRON_RUN_ON_START === 'true') {
+  console.log('[CRON] CRON_RUN_ON_START=true, running cron jobs once now...');
+  runRecurringReminders();
+  runYearlyAdvanceReminders();
+}
+
+module.exports = { runRecurringReminders, runYearlyAdvanceReminders, runMonthStart };
