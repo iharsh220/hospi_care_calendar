@@ -10,6 +10,21 @@ const monthLabel = (month, year) => {
 // ─────────────────────────────────────────────
 // 12. GET /field/my-events
 // ─────────────────────────────────────────────
+// Helper: check if event type should be carried forward
+const isCarryForwardType = (type) => ['monthly', 'bi_monthly', 'quarterly', 'half_yearly'].includes(type);
+
+// Helper: get due months for a periodic type
+const getDueMonths = (type) => {
+  switch (type) {
+    case 'monthly':     return [1,2,3,4,5,6,7,8,9,10,11,12];
+    case 'bi_monthly':  return [1,3,5,7,9,11];
+    case 'quarterly':   return [1,4,7,10];
+    case 'half_yearly': return [1,7];
+    case 'yearly':      return [1];
+    default:            return [1,2,3,4,5,6,7,8,9,10,11,12];
+  }
+};
+
 const getMyEvents = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -18,6 +33,51 @@ const getMyEvents = async (req, res) => {
 
     const user = await Organogram.findByPk(userId);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    // ── Auto carry-forward: check previous month for uncompleted events ──
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+
+    // Only auto-carry if viewing current month (not a past/future month)
+    if (month === currentMonth && year === currentYear) {
+      const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+      const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+
+      // Check if this event type is due in the current month
+      const isDueThisMonth = (eventType) => {
+        if (eventType === 'specific') return false; // specific events never carry forward
+        return getDueMonths(eventType).includes(currentMonth);
+      };
+
+      const prevAssignments = await EventAssignment.findAll({
+        where: { field_user_id: userId, month: prevMonth, year: prevYear, status: { [Op.ne]: 'done' } },
+        include: [{ model: Event, as: 'event', attributes: ['id', 'name', 'type'] }]
+      });
+
+      for (const prev of prevAssignments) {
+        if (!prev.event) continue;
+        // Only carry forward if event type is due this month
+        if (!isDueThisMonth(prev.event.type)) continue;
+
+        const existing = await EventAssignment.findOne({
+          where: { field_user_id: userId, event_id: prev.event_id, month: currentMonth, year: currentYear, is_carry_forward: true }
+        });
+        if (existing) continue;
+
+        await EventAssignment.create({
+          field_user_id: userId,
+          event_id: prev.event_id,
+          month: currentMonth,
+          year: currentYear,
+          status: 'carry',
+          is_carry_forward: true,
+          carry_count: (prev.carry_count || 0) + 1,
+          original_month: prev.original_month || prevMonth,
+          original_year: prev.original_year || prevYear
+        });
+      }
+    }
 
     const assignments = await EventAssignment.findAll({
       where: { field_user_id: userId, month, year },

@@ -185,7 +185,7 @@ const getEvents = async (req, res) => {
     const formatted = events.map(e => {
       const assignedLabel = e.assigned_to === 'all'
         ? `All ${totalUsers} users`
-        : `Level: ${e.assigned_to}`;
+        : `Levels: ${e.assigned_to.split(',').map(l => l.trim()).join(', ')}`;
 
       return {
         id: e.id,
@@ -249,10 +249,17 @@ const createEvent = async (req, res) => {
 // ─────────────────────────────────────────────
 // Helper: assign event to matching field users
 // ─────────────────────────────────────────────
+// Helper: check if a user's level matches the assigned_to filter
+// assigned_to can be 'all' or comma-separated levels like 'BDM - Government Account,RM'
+const matchesAssignedTo = (userLevel, assignedTo) => {
+  if (assignedTo === 'all') return true;
+  const levels = assignedTo.split(',').map(l => l.trim());
+  return levels.includes(userLevel);
+};
+
 const assignEventToUsers = async (event) => {
   const where = { status: 'active' };
-  if (event.assigned_to !== 'all') where.level = event.assigned_to;
-  const users = await Organogram.findAll({ where, attributes: ['id'] });
+  const users = await Organogram.findAll({ where, attributes: ['id', 'level'] });
 
   const now = new Date();
   const month = now.getMonth() + 1;
@@ -273,7 +280,9 @@ const assignEventToUsers = async (event) => {
     else defaultStatus = 'pending';
   }
 
-  const assignments = users.map(u => ({
+  const matchedUsers = event.assigned_to === 'all' ? users : users.filter(u => matchesAssignedTo(u.level, event.assigned_to));
+
+  const assignments = matchedUsers.map(u => ({
     field_user_id: u.id,
     event_id: event.id,
     month,
@@ -559,12 +568,16 @@ const createUser = async (req, res) => {
     const user = await Organogram.create({ emp_name, emailid, sap_code, emp_code, mobileno, level, division, hq, doj, am_sapcode, rm_sapcode, zm_sapcode });
 
     // Auto-assign existing active events to the new user
-    const events = await Event.findAll({
-      where: {
-        is_active: true,
-        [Op.or]: [{ assigned_to: 'all' }, { assigned_to: level }]
-      }
-    });
+    // assigned_to can be 'all' or comma-separated levels like 'BDM - Government Account,RM'
+    const assignedLevels = level === 'all' ? [] : level.split(',').map(l => l.trim());
+    const eventWhere = {
+      is_active: true,
+      [Op.or]: [
+        { assigned_to: 'all' },
+        ...(assignedLevels.length > 0 ? assignedLevels.map(l => ({ assigned_to: l })) : [])
+      ]
+    };
+    const events = await Event.findAll({ where: eventWhere });
 
     if (events.length > 0) {
       const now = new Date();
@@ -666,7 +679,6 @@ const carryForwardAssignments = async (req, res) => {
 };
 
 module.exports = {
-  carryForwardAssignments,
   getDashboard,
   getCalendar,
   getEvents,

@@ -10,8 +10,7 @@ const {
   getTracking,
   getIncomplete,
   getUsers,
-  createUser,
-  carryForwardAssignments
+  createUser
 } = require('../controllers/adminController');
 
 // All admin routes require admin JWT
@@ -34,6 +33,5 @@ router.get('/incomplete', getIncomplete);    // #9
 router.get('/users', getUsers);              // #10
 router.post('/users', createUser);           // #11
 
-router.post('/carry-forward', carryForwardAssignments);
 
 module.exports = router;
