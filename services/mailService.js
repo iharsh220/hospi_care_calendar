@@ -15,15 +15,17 @@ const transporter = nodemailer.createTransport({
 
 async function sendMail({ to, subject, html }) {
   try {
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: process.env.MAIL_FROM || 'FieldTrack <noreply@fieldtrack.com>',
       to,
       subject,
       html,
     });
     console.log(`[MAIL] Sent to ${to}: ${subject}`);
+    return info;
   } catch (err) {
     console.error(`[MAIL ERROR] Failed to ${to}:`, err.message);
+    throw err;
   }
 }
 

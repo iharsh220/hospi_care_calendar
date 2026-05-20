@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "month-start:test": "node scripts/runMonthStart.js"
+    "month-start:test": "node scripts/runMonthStart.js",
+    "email:test": "node scripts/testEmail.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
