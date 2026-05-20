@@ -14,7 +14,7 @@ function signToken(payload) {
 async function login(req, res) {
   try {
     const { username, password, email, sap_code } = req.body;
-    console.log(username, password, email, sap_code);
+    console.log(username, password, process.env.ADMIN_USERNAME,process.env.ADMIN_PASSWORD);
     // ── Admin login ──
     if (username !== undefined || (email === undefined && sap_code === undefined)) {
       if (
@@ -22,7 +22,7 @@ async function login(req, res) {
         password === process.env.ADMIN_PASSWORD
       ) {
         const token = signToken({ role: 'admin', id: 0 });
-        console.log(token);
+
         return res.json({
           success: true,
           role: 'admin',
