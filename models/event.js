@@ -15,9 +15,9 @@ const Event = sequelize.define('Event', {
     type: DataTypes.TEXT,
     allowNull: true
   },
-  // 'monthly' = open period each month | 'specific' = fixed date
+  // 'monthly'=every month | 'bi_monthly'=every 2 months | 'quarterly'=every 3 months | 'half_yearly'=every 6 months | 'yearly'=every 12 months | 'specific'=fixed date
   type: {
-    type: DataTypes.ENUM('monthly', 'specific'),
+    type: DataTypes.ENUM('monthly', 'bi_monthly', 'quarterly', 'half_yearly', 'yearly', 'specific'),
     allowNull: false,
     defaultValue: 'monthly'
   },

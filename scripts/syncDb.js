@@ -1,4 +1,18 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+
+// Helper: check if event type is periodic
+const isPeriodicType = (type) => ['monthly', 'bi_monthly', 'quarterly', 'half_yearly', 'yearly'].includes(type);
+const getDueMonths = (type) => {
+  switch (type) {
+    case 'monthly':     return [1,2,3,4,5,6,7,8,9,10,11,12];
+    case 'bi_monthly':  return [1,3,5,7,9,11];
+    case 'quarterly':   return [1,4,7,10];
+    case 'half_yearly': return [1,7];
+    case 'yearly':      return [1];
+    default:            return [1,2,3,4,5,6,7,8,9,10,11,12];
+  }
+};
+
 const { sequelize, Admin, Organogram, Event, EventAssignment } = require('../models');
 const bcrypt = require('bcryptjs');
 
@@ -34,12 +48,15 @@ async function syncAndSeed() {
     const pad = n => String(n).padStart(2, '0');
 
     const defaultEvents = [
-      { name: 'Safety inspection',        description: 'Monthly field safety check',           type: 'monthly',   event_date: null,                       assigned_to: 'all', seven_day_reminder: false },
-      { name: 'Equipment maintenance log', description: 'Log all equipment maintenance done',  type: 'monthly',   event_date: null,                       assigned_to: 'all', seven_day_reminder: false },
-      { name: 'Route compliance check',   description: 'Verify field route compliance',        type: 'monthly',   event_date: null,                       assigned_to: 'all', seven_day_reminder: false },
-      { name: 'Annual audit',             description: 'Yearly compliance audit',              type: 'specific',  event_date: `${y}-${pad(m)}-15`,        assigned_to: 'all', seven_day_reminder: true  },
-      { name: 'Compliance review',        description: 'Regulatory compliance review',         type: 'specific',  event_date: `${y}-${pad(m)}-22`,        assigned_to: 'all', seven_day_reminder: true  },
-      { name: 'Field site survey',        description: 'On-site field survey',                 type: 'specific',  event_date: `${y}-${pad(m)}-28`,        assigned_to: 'all', seven_day_reminder: true  },
+      { name: 'Safety inspection',        description: 'Monthly field safety check',           type: 'monthly',    event_date: null,                        assigned_to: 'all', seven_day_reminder: false },
+      { name: 'Equipment maintenance log', description: 'Log all equipment maintenance done',  type: 'monthly',    event_date: null,                        assigned_to: 'all', seven_day_reminder: false },
+      { name: 'Route compliance check',   description: 'Verify field route compliance',        type: 'monthly',    event_date: null,                        assigned_to: 'all', seven_day_reminder: false },
+      { name: 'Bi-monthly review',        description: 'Every 2 months field review',          type: 'bi_monthly', event_date: null,                        assigned_to: 'all', seven_day_reminder: false },
+      { name: 'Quarterly audit',          description: 'Every 3 months compliance audit',      type: 'quarterly',  event_date: null,                        assigned_to: 'all', seven_day_reminder: false },
+      { name: 'Half-yearly assessment',   description: 'Every 6 months field assessment',      type: 'half_yearly',event_date: null,                        assigned_to: 'all', seven_day_reminder: false },
+      { name: 'Annual audit',             description: 'Yearly compliance audit',              type: 'yearly',     event_date: null,                        assigned_to: 'all', seven_day_reminder: true  },
+      { name: 'Compliance review',        description: 'Regulatory compliance review',         type: 'specific',   event_date: `${y}-${pad(m)}-15`,       assigned_to: 'all', seven_day_reminder: true  },
+      { name: 'Field site survey',        description: 'On-site field survey',                 type: 'specific',   event_date: `${y}-${pad(m)}-22`,       assigned_to: 'all', seven_day_reminder: true  },
     ];
 
     const createdEvents = [];
@@ -59,6 +76,7 @@ async function syncAndSeed() {
     for (const user of allUsers) {
       for (const event of createdEvents) {
         if (event.assigned_to !== 'all' && event.assigned_to !== user.level) continue;
+        if (isPeriodicType(event.type) && !getDueMonths(event.type).includes(m)) continue;
 
         const existing = await EventAssignment.findOne({
           where: { field_user_id: user.id, event_id: event.id, month: m, year: y, is_carry_forward: false }

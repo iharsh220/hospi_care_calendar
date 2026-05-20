@@ -14,6 +14,21 @@ const formatDate = (date) => {
   return d.toLocaleString('en-IN', { month: 'short', day: 'numeric' });
 };
 
+// Helper: check if event type is a periodic (recurring) type
+const isPeriodicType = (type) => ['monthly', 'bi_monthly', 'quarterly', 'half_yearly', 'yearly'].includes(type);
+
+// Helper: get the list of due months (1-12) for a given periodic type
+const getDueMonths = (type) => {
+  switch (type) {
+    case 'monthly':     return [1,2,3,4,5,6,7,8,9,10,11,12];
+    case 'bi_monthly':  return [1,3,5,7,9,11];       // every 2nd month (odd)
+    case 'quarterly':   return [1,4,7,10];            // Jan, Apr, Jul, Oct
+    case 'half_yearly': return [1,7];                  // Jan, Jul
+    case 'yearly':      return [1];                    // Jan only
+    default:            return [1,2,3,4,5,6,7,8,9,10,11,12];
+  }
+};
+
 // ─────────────────────────────────────────────
 // 3. GET /admin/dashboard
 // ─────────────────────────────────────────────
@@ -177,7 +192,13 @@ const getEvents = async (req, res) => {
         name: e.name,
         description: e.description,
         type: e.type,
-        schedule: e.type === 'monthly' ? 'Every month (open period)' : null,
+        schedule: e.type === 'monthly' ? 'Every month (open period)'
+          : e.type === 'bi_monthly' ? 'Every 2 months'
+          : e.type === 'quarterly' ? 'Every 3 months (quarterly)'
+          : e.type === 'half_yearly' ? 'Every 6 months (half-yearly)'
+          : e.type === 'yearly' ? 'Every 12 months (yearly)'
+          : e.type === 'specific' ? 'Fixed date'
+          : null,
         date: e.event_date || null,
         seven_day_reminder: e.seven_day_reminder,
         assigned_to: e.assigned_to,
@@ -236,6 +257,11 @@ const assignEventToUsers = async (event) => {
   const now = new Date();
   const month = now.getMonth() + 1;
   const year = now.getFullYear();
+
+  // For periodic events, only assign in due months
+  if (isPeriodicType(event.type) && !getDueMonths(event.type).includes(month)) {
+    return; // skip assignment this month
+  }
 
   // Determine status for specific events
   let defaultStatus = 'pending';
