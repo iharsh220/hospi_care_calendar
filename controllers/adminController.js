@@ -1,9 +1,9 @@
 const { Op } = require('sequelize');
-const { Organogram, Event, EventAssignment } = require('../models');
+const { sequelize, Organogram, Event, EventAssignment } = require('../models');
 const { shouldEventFireInMonth, generateAssignmentsForPeriod } = require('../services/assignmentService');
 
 function monthLabel(month, year) {
-  const names = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const names = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   return `${names[month - 1]} ${year}`;
 }
 
@@ -40,7 +40,7 @@ async function adminDashboard(req, res) {
     )].length;
 
     const alerts = [];
-    if (usersWithPending > 0) alerts.push({ type: 'red', message: `${usersWithPending} field users have not completed all required events for ${monthLabel(month,year)}.` });
+    if (usersWithPending > 0) alerts.push({ type: 'red', message: `${usersWithPending} field users have not completed all required events for ${monthLabel(month, year)}.` });
     if (usersWithCarry > 0) alerts.push({ type: 'amber', message: `${usersWithCarry} carry-forwards are active this month.` });
 
     // Event completion breakdown
@@ -222,12 +222,31 @@ async function editEvent(req, res) {
 
 // DELETE /admin/events/:event_id
 async function deleteEvent(req, res) {
+  const transaction = await sequelize.transaction();
+
   try {
-    const event = await Event.findByPk(req.params.event_id);
-    if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
-    await event.update({ is_active: false });
-    return res.json({ success: true, message: 'Event deactivated successfully' });
+    const event = await Event.findByPk(req.params.event_id, { transaction });
+    if (!event) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'Event not found' });
+    }
+
+    const deletedAssignments = await EventAssignment.destroy({
+      where: { event_id: event.id },
+      transaction,
+    });
+
+    await event.destroy({ transaction });
+    await transaction.commit();
+
+    return res.json({
+      success: true,
+      message: 'Event deleted successfully',
+      deleted_event_id: event.id,
+      deleted_assignments: deletedAssignments,
+    });
   } catch (err) {
+    await transaction.rollback();
     console.error('[deleteEvent]', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
@@ -276,7 +295,7 @@ async function adminTracking(req, res) {
       let status = 'complete';
       if (hasCarry) status = 'carry';
       else if (pending > 0) status = 'incomplete';
-      const lastDone = uAssign.filter(a => a.completed_on).sort((a,b) => new Date(b.completed_on) - new Date(a.completed_on));
+      const lastDone = uAssign.filter(a => a.completed_on).sort((a, b) => new Date(b.completed_on) - new Date(a.completed_on));
       const last_active = lastDone[0]?.completed_on || null;
       return { id: u.id, name: u.emp_name, employee_id: u.emp_code, region: u.region, email: u.emailid, completed: done, pending, total_events: total, completion_percent: pct, has_carry_forward: hasCarry, last_active, status };
     });
@@ -341,7 +360,7 @@ async function adminIncomplete(req, res) {
       };
     });
 
-    if (search) rows = rows.filter(r => (r.name||'').toLowerCase().includes(search));
+    if (search) rows = rows.filter(r => (r.name || '').toLowerCase().includes(search));
     if (filter === 'carry') rows = rows.filter(r => r.has_carry_forward);
     else if (filter === 'high') rows = rows.filter(r => r.risk_level === 'high');
 
