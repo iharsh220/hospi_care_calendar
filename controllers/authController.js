@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken');
 const { Organogram } = require('../models');
 const { Op } = require('sequelize');
+require('dotenv').config();
+
 
 function signToken(payload) {
   return jwt.sign(payload, process.env.JWT_SECRET, {
