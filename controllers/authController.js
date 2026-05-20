@@ -3,9 +3,6 @@ const { Organogram } = require('../models');
 const { Op } = require('sequelize');
 const path = require('path');
 
-require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
-
-
 function signToken(payload) {
   return jwt.sign(payload, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
