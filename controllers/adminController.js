@@ -249,12 +249,14 @@ const createEvent = async (req, res) => {
 // ─────────────────────────────────────────────
 // Helper: assign event to matching field users
 // ─────────────────────────────────────────────
-// Helper: check if a user's level matches the assigned_to filter
-// assigned_to can be 'all' or comma-separated levels like 'BDM - Government Account,RM'
-const matchesAssignedTo = (userLevel, assignedTo) => {
+// Helper: check if a user matches the assigned_to filter
+// assigned_to can be 'all' or comma-separated values that match either:
+//   - level (e.g. 'AM', 'RM', 'BDM - Government Account', 'ZM')
+//   - hq/hospital name (e.g. 'KEM', 'Mumbai')
+const matchesAssignedTo = (user, assignedTo) => {
   if (assignedTo === 'all') return true;
-  const levels = assignedTo.split(',').map(l => l.trim());
-  return levels.includes(userLevel);
+  const values = assignedTo.split(',').map(v => v.trim());
+  return values.some(v => v === user.level || v === user.hq);
 };
 
 const assignEventToUsers = async (event) => {
@@ -280,7 +282,7 @@ const assignEventToUsers = async (event) => {
     else defaultStatus = 'pending';
   }
 
-  const matchedUsers = event.assigned_to === 'all' ? users : users.filter(u => matchesAssignedTo(u.level, event.assigned_to));
+  const matchedUsers = event.assigned_to === 'all' ? users : users.filter(u => matchesAssignedTo(u, event.assigned_to));
 
   const assignments = matchedUsers.map(u => ({
     field_user_id: u.id,
