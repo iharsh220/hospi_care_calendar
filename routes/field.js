@@ -1,16 +1,14 @@
-const express = require('express');
-const router = express.Router();
-const { requireField } = require('../middlewares/auth');
-const upload = require('../middlewares/upload');
-const { getMyEvents, submitCompletion, getMyHistory } = require('../controllers/fieldController');
-const { getReports } = require('../controllers/fieldReportController');
+const { Router } = require('express');
+const { authenticate, requireField } = require('../middleware/auth');
+const { upload } = require('../middleware/upload');
+const { myEvents, completeEvent, myHistory, teamTracking } = require('../controllers/fieldController');
 
-// All field routes require field JWT
-router.use(requireField);
+const router = Router();
+router.use(authenticate, requireField);
 
-router.get('/my-events', getMyEvents);                            // #12
-router.post('/complete', upload.single('proof_image'), submitCompletion); // #13
-router.get('/my-history', getMyHistory);                          // #14
-router.get('/reports', getReports);                               // #15 — organogram hierarchy reports
+router.get('/my-events', myEvents);
+router.post('/complete', upload.single('proof_image'), completeEvent);
+router.get('/my-history', myHistory);
+router.get('/team-tracking', teamTracking);   // ZM / RM / AM hierarchy view
 
 module.exports = router;

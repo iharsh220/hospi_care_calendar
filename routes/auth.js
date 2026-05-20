@@ -1,8 +1,8 @@
-const express = require('express');
-const router = express.Router();
+const { Router } = require('express');
 const { login } = require('../controllers/authController');
 
-// POST /login — handles both admin and field user
+const router = Router();
+
 router.post('/login', login);
 
 module.exports = router;

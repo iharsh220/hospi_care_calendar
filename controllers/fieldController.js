@@ -1,14 +1,19 @@
 const { Op } = require('sequelize');
-const path = require('path');
 const { Organogram, Event, EventAssignment } = require('../models');
-const { ensureAssignmentsForMonth } = require('../services/assignmentService');
+const { generateAssignmentsForPeriod } = require('../services/assignmentService');
 
-const monthLabel = (month, year) => {
-  const d = new Date(year, month - 1, 1);
-  return d.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
-};
+function monthLabel(month, year) {
+  const names = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return `${names[month - 1]} ${year}`;
+}
 
-const getMyEvents = async (req, res) => {
+function statusLabel(status, isCarry) {
+  if (isCarry && status !== 'done') return 'carry';
+  return status;
+}
+
+// GET /field/my-events?month=&year=
+async function myEvents(req, res) {
   try {
     const userId = req.user.id;
     const month = parseInt(req.query.month) || new Date().getMonth() + 1;
@@ -17,102 +22,91 @@ const getMyEvents = async (req, res) => {
     const user = await Organogram.findByPk(userId);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    await ensureAssignmentsForMonth(month, year);
+    // Ensure assignments for this user
+    await generateAssignmentsForPeriod(month, year);
 
     const assignments = await EventAssignment.findAll({
-      where: { field_user_id: userId, month, year },
-      include: [{ model: Event, as: 'event' }],
-      order: [['id', 'ASC']]
+      where: { organogram_id: userId, period_month: month, period_year: year },
+      include: [{ model: Event, as: 'event', where: { is_active: true } }],
+      order: [['id', 'ASC']],
     });
+
+    const done = assignments.filter(a => a.status === 'done').length;
+    const pending = assignments.filter(a => a.status !== 'done').length;
+    const total = assignments.length;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 100;
+    const hasCarry = assignments.some(a => a.is_carry_forward && a.status !== 'done');
 
     // Build alerts
     const alerts = [];
-    const carryItems = assignments.filter(a => a.is_carry_forward);
-    if (carryItems.length > 0) {
-      for (const ca of carryItems) {
-        const prevMonth = month === 1 ? 12 : month - 1;
-        const prevYear = month === 1 ? year - 1 : year;
-        const prevLabel = monthLabel(prevMonth, prevYear);
-        alerts.push({
-          type: 'amber',
-          message: `Carry-forward active. You did not complete ${ca.event.name} in ${prevLabel}. It has been added to your ${monthLabel(month, year)} tasks.`
-        });
-      }
+    const carryItems = assignments.filter(a => a.is_carry_forward && a.status !== 'done');
+    for (const c of carryItems) {
+      alerts.push({
+        type: 'amber',
+        message: `Carry-forward active. You did not complete "${c.event.name}" in ${monthLabel(c.carry_from_month, c.carry_from_year)}. It has been added to your ${monthLabel(month, year)} tasks.`,
+      });
     }
 
-    // 7-day reminders
-    const today = new Date();
-    const remindItems = assignments.filter(a => a.status === 'remind' && a.event.event_date);
-    for (const ri of remindItems) {
-      const due = new Date(ri.event.event_date);
-      const diff = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
-      if (diff > 0 && diff <= 7) {
+    // 7-day reminder events
+    const remindItems = assignments.filter(a => a.status === 'remind');
+    for (const r of remindItems) {
+      if (r.event.event_date) {
         alerts.push({
           type: 'blue',
-          message: `${ri.event.name} is scheduled for ${due.toLocaleDateString('en-IN', { day: 'numeric', month: 'long' })} — ${diff} day${diff > 1 ? 's' : ''} away. An email reminder has been sent.`
+          message: `${r.event.name} is scheduled for ${r.event.event_date} — within 7 days. An email reminder has been sent.`,
         });
       }
     }
 
-    // Sidebar
-    const done = assignments.filter(a => a.status === 'done').length;
-    const pending = assignments.filter(a => a.status !== 'done').length;
-    const hasCarryForward = assignments.some(a => a.is_carry_forward);
-    const completionPercent = assignments.length > 0
-      ? Math.round((done / assignments.length) * 100) : 0;
-
-    // Format events
+    // Build event cards
+    const now = new Date();
     const events = assignments.map(a => {
-      const e = a.event;
-      let description = '';
-
-      if (a.status === 'carry') {
-        const prevMonth = a.original_month || (month === 1 ? 12 : month - 1);
-        const prevYear = a.original_year || (month === 1 ? year - 1 : year);
-        description = `Carry-forward from ${monthLabel(prevMonth, prevYear)} — complete anytime in ${monthLabel(month, year)}`;
-      } else if (a.status === 'done') {
-        description = `Completed on ${new Date(a.completed_on).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`;
-      } else if (a.status === 'remind' && e.event_date) {
-        description = `Due: ${new Date(e.event_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })} · 7-day reminder sent`;
-      } else if (a.status === 'upcoming' && e.event_date) {
-        description = `Due: ${new Date(e.event_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })} · upcoming`;
-      } else if (e.type === 'monthly') {
-        description = `Due anytime in ${monthLabel(month, year)}`;
-      } else {
-        description = e.description || '';
+      const ev = a.event;
+      let status = a.status;
+      if (a.is_carry_forward && status !== 'done') status = 'carry';
+      // Mark upcoming for yearly events not yet within 7 days
+      if (ev.frequency === 'yearly' && status === 'pending' && ev.event_date) {
+        const daysUntil = Math.ceil((new Date(ev.event_date) - now) / 86400000);
+        if (daysUntil > 7) status = 'upcoming';
+        else if (daysUntil <= 7 && daysUntil > 0) status = 'remind';
       }
+
+      let description = '';
+      if (status === 'done') description = `Completed on ${a.completed_on}`;
+      else if (status === 'carry') description = `Carry-forward from ${monthLabel(a.carry_from_month, a.carry_from_year)} — complete anytime in ${monthLabel(month, year)}`;
+      else if (status === 'remind') description = `Due: ${ev.event_date} · 7-day reminder sent`;
+      else if (status === 'upcoming') description = `Due: ${ev.event_date} · upcoming`;
+      else description = ev.frequency === 'yearly' ? `Due: ${ev.event_date}` : `Due anytime in ${monthLabel(month, year)}`;
 
       return {
         id: a.id,
-        name: e.name,
+        event_id: ev.id,
+        name: ev.name,
         description,
-        type: e.type,
-        status: a.status,
-        due_date: e.event_date || null,
-        carry_count: a.carry_count || 0,
-        is_carry_forward: a.is_carry_forward,
-        ...(a.completed_on && { completed_on: a.completed_on })
+        type: ev.frequency === 'yearly' ? 'specific' : 'monthly',
+        status,
+        due_date: ev.event_date || null,
+        completed_on: a.completed_on || null,
+        proof_image_url: a.proof_image_url || null,
       };
     });
 
-    res.json({
+    return res.json({
       success: true,
-      user: { name: user.emp_name, level: user.level },
+      user: { name: user.emp_name, region: user.region },
       month_label: monthLabel(month, year),
       alerts,
-      sidebar_status: { done, pending, completion_percent: completionPercent, has_carry_forward: hasCarryForward },
-      events
+      sidebar_status: { done, pending, completion_percent: pct, has_carry_forward: hasCarry },
+      events,
     });
   } catch (err) {
-    console.error('My events error:', err);
+    console.error('[myEvents]', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
-};
+}
 
-// ─────────────────────────────────────────────
-// 13. POST /field/complete
-// ─────────────────────────────────────────────
-const submitCompletion = async (req, res) => {
+// POST /field/complete  (multipart/form-data)
+async function completeEvent(req, res) {
   try {
     const userId = req.user.id;
     const { event_id, completed_on, notes } = req.body;
@@ -125,70 +119,150 @@ const submitCompletion = async (req, res) => {
     }
 
     const assignment = await EventAssignment.findOne({
-      where: { id: event_id, field_user_id: userId }
+      where: {
+        id: event_id,
+        organogram_id: userId,
+        status: { [Op.not]: 'done' },
+      },
     });
 
     if (!assignment) {
-      return res.status(404).json({ success: false, message: 'Event assignment not found' });
-    }
-    if (assignment.status === 'done') {
-      return res.status(400).json({ success: false, message: 'Event already marked as complete' });
+      return res.status(404).json({ success: false, message: 'Assignment not found or already completed' });
     }
 
-    // Build proof URL (in production serve /uploads statically)
-    const proofImageUrl = `/uploads/${req.file.filename}`;
-
+    const proofUrl = `/uploads/${req.file.filename}`;
     await assignment.update({
       status: 'done',
       completed_on: completed_on || new Date().toISOString().split('T')[0],
-      notes: notes || null,
-      proof_image_url: proofImageUrl
+      completion_notes: notes || null,
+      proof_image_url: proofUrl,
     });
 
-    res.json({ success: true, message: 'Event marked as complete successfully' });
+    return res.json({ success: true, message: 'Event marked as complete successfully' });
   } catch (err) {
-    console.error('Submit completion error:', err);
+    console.error('[completeEvent]', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
-};
+}
 
-// ─────────────────────────────────────────────
-// 14. GET /field/my-history
-// ─────────────────────────────────────────────
-const getMyHistory = async (req, res) => {
+// GET /field/my-history
+async function myHistory(req, res) {
   try {
     const userId = req.user.id;
 
     const user = await Organogram.findByPk(userId);
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
     const assignments = await EventAssignment.findAll({
-      where: {
-        field_user_id: userId,
-        status: { [Op.in]: ['done', 'carry'] }
-      },
+      where: { organogram_id: userId },
       include: [{ model: Event, as: 'event' }],
-      order: [['year', 'DESC'], ['month', 'DESC'], ['id', 'DESC']]
+      order: [['period_year', 'DESC'], ['period_month', 'DESC'], ['id', 'DESC']],
     });
 
-    const history = assignments.map(a => ({
-      event_name: a.event.name,
-      type: a.event.type,
-      month_label: monthLabel(a.month, a.year),
-      completed_on: a.completed_on || null,
-      status: a.status,
-      proof_image_url: a.proof_image_url || null
-    }));
-
-    res.json({
-      success: true,
-      user: { name: user.emp_name },
-      history
+    const history = assignments.map(a => {
+      const ev = a.event;
+      const ml = a.period_month ? monthLabel(a.period_month, a.period_year) : 'N/A';
+      const status = a.status === 'done' ? 'done' : 'carry';
+      return {
+        event_name: ev?.name || 'Unknown',
+        type: ev?.frequency === 'yearly' ? 'specific' : 'monthly',
+        month_label: ml,
+        completed_on: a.completed_on || null,
+        status,
+        proof_image_url: a.proof_image_url || null,
+      };
     });
+
+    return res.json({ success: true, user: { name: user?.emp_name }, history });
   } catch (err) {
-    console.error('History error:', err);
+    console.error('[myHistory]', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
-};
+}
 
-module.exports = { getMyEvents, submitCompletion, getMyHistory };
+// ── Hierarchical access: ZM → RM → AM/KAM data ──
+
+// GET /field/team-tracking?month=&year= (for ZM, RM, AM views)
+async function teamTracking(req, res) {
+  try {
+    const userId = req.user.id;
+    const month = parseInt(req.query.month) || new Date().getMonth() + 1;
+    const year = parseInt(req.query.year) || new Date().getFullYear();
+
+    const me = await Organogram.findByPk(userId);
+    if (!me) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const level = (me.level || '').trim().toLowerCase();
+    let subordinates = [];
+
+    if (level === 'zm') {
+      // ZM can see all RMs and AMs under their zm_sapcode
+      subordinates = await Organogram.findAll({
+        where: {
+          [Op.or]: [
+            { zm_sapcode: me.sap_code },
+            { rm_sapcode: { [Op.in]: await Organogram.findAll({ where: { zm_sapcode: me.sap_code }, attributes: ['sap_code'] }).then(rs => rs.map(r => r.sap_code)) } },
+          ],
+          status: { [Op.not]: 'inactive' },
+        },
+      });
+    } else if (level === 'rm') {
+      // RM sees all AMs under their rm_sapcode
+      subordinates = await Organogram.findAll({
+        where: { rm_sapcode: me.sap_code, status: { [Op.not]: 'inactive' } },
+      });
+    } else if (level === 'am') {
+      // AM sees users where their sap is am_sapcode (BDMs under them)
+      subordinates = await Organogram.findAll({
+        where: { am_sapcode: me.sap_code, status: { [Op.not]: 'inactive' } },
+      });
+    }
+
+    const allAssignments = await EventAssignment.findAll({
+      where: {
+        organogram_id: { [Op.in]: subordinates.map(u => u.id) },
+        period_month: month,
+        period_year: year,
+      },
+    });
+
+    const assignMap = {};
+    for (const a of allAssignments) {
+      if (!assignMap[a.organogram_id]) assignMap[a.organogram_id] = [];
+      assignMap[a.organogram_id].push(a);
+    }
+
+    const users = subordinates.map(u => {
+      const uA = assignMap[u.id] || [];
+      const done = uA.filter(a => a.status === 'done').length;
+      const pending = uA.filter(a => a.status !== 'done').length;
+      const total = uA.length;
+      const pct = total > 0 ? Math.round((done / total) * 100) : 100;
+      return {
+        id: u.id,
+        name: u.emp_name,
+        employee_id: u.emp_code,
+        region: u.region,
+        level: u.level,
+        completed: done,
+        pending,
+        total_events: total,
+        completion_percent: pct,
+        has_carry_forward: uA.some(a => a.is_carry_forward && a.status !== 'done'),
+        status: pending > 0 ? 'incomplete' : 'complete',
+      };
+    });
+
+    return res.json({
+      success: true,
+      viewer: { name: me.emp_name, level: me.level },
+      month_label: monthLabel(month, year),
+      total_team: users.length,
+      users,
+    });
+  } catch (err) {
+    console.error('[teamTracking]', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+}
+
+module.exports = { myEvents, completeEvent, myHistory, teamTracking };

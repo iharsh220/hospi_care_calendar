@@ -1,195 +1,159 @@
 const { Op } = require('sequelize');
 const { Organogram, Event, EventAssignment } = require('../models');
+const { sendMail, buildCarryForwardHtml } = require('./mailService');
 
-const ACTIVE_STATUSES = ['active', 'Active', 'ACTIVE'];
-const PERIODIC_TYPES = ['monthly', 'bi_monthly', 'quarterly', 'half_yearly', 'yearly'];
-const CARRY_FORWARD_TYPES = ['monthly', 'bi_monthly', 'quarterly', 'half_yearly', 'yearly'];
+// Map level field to assigned_to category
+function levelToCategory(level) {
+  if (!level) return null;
+  const l = level.trim().toLowerCase();
+  if (l.includes('bdm')) return 'BDM';
+  if (l === 'am') return 'KAM';
+  if (l === 'rm') return 'RM';
+  if (l === 'zm') return 'ZM';
+  return null;
+}
 
-const activeUserWhere = () => ({ status: { [Op.in]: ACTIVE_STATUSES } });
-
-const monthBounds = (month, year) => {
-  const start = `${year}-${String(month).padStart(2, '0')}-01`;
-  const endDay = new Date(year, month, 0).getDate();
-  const end = `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
-  return { start, end };
-};
-
-const previousMonth = (month, year) => ({
-  month: month === 1 ? 12 : month - 1,
-  year: month === 1 ? year - 1 : year
-});
-
-const parseAssignedTo = (assignedTo) => {
-  if (!assignedTo || assignedTo === 'all' || assignedTo === 'everyone') return ['all'];
-  return String(assignedTo).split(',').map(v => v.trim()).filter(Boolean);
-};
-
-const targetAliases = (target) => {
-  const lower = String(target).toLowerCase();
-  if (lower === 'all' || lower === 'everyone') return ['all'];
-  if (lower === 'bdm') return ['BDM - Government Account'];
-  if (lower === 'kam') return ['AM', 'KAM'];
-  if (lower === 'am') return ['AM', 'KAM'];
-  return [target];
-};
-
-const matchesAssignedTo = (user, assignedTo) => {
-  const targets = parseAssignedTo(assignedTo).flatMap(targetAliases);
-  if (targets.includes('all')) return true;
-
-  return targets.some(target => (
-    String(user.level || '').toLowerCase() === String(target).toLowerCase()
-    || String(user.hq || '').toLowerCase() === String(target).toLowerCase()
-  ));
-};
-
-const getDueMonths = (event) => {
-  if (event.event_date && event.type === 'yearly') {
-    return [new Date(event.event_date).getMonth() + 1];
-  }
-
-  switch (event.type) {
+// Should this event fire in a given month/year?
+function eventFiringMonths(frequency, startDate) {
+  // Returns array of month numbers (1-12) when event is active in a year
+  switch (frequency) {
     case 'monthly': return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-    case 'bi_monthly': return [1, 3, 5, 7, 9, 11];
+    case 'bi-monthly': return [1, 3, 5, 7, 9, 11]; // Jan, Mar, May...
     case 'quarterly': return [1, 4, 7, 10];
-    case 'half_yearly': return [1, 7];
-    case 'yearly': return [1];
-    default: return [];
+    case 'half-yearly': return [1, 7];
+    case 'yearly': return []; // handled separately via event_date
+    default: return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   }
-};
+}
 
-const isEventDueInMonth = (event, month, year) => {
-  if (event.type === 'specific') {
+function shouldEventFireInMonth(event, month, year) {
+  if (event.frequency === 'yearly') {
     if (!event.event_date) return false;
-    const date = new Date(event.event_date);
-    return date.getMonth() + 1 === month && date.getFullYear() === year;
+    const d = new Date(event.event_date);
+    return d.getFullYear() === year && d.getMonth() + 1 === month;
   }
+  const months = eventFiringMonths(event.frequency);
+  return months.includes(month);
+}
 
-  if (!PERIODIC_TYPES.includes(event.type)) return false;
-  return getDueMonths(event).includes(month);
-};
-
-const statusForEvent = (event, today = new Date()) => {
-  if (!event.event_date || !['specific', 'yearly'].includes(event.type)) return 'pending';
-
-  const dueDate = new Date(event.event_date);
-  if (event.type === 'yearly') {
-    dueDate.setFullYear(today.getFullYear());
+// Get users eligible for event
+async function getEligibleUsers(assigned_to) {
+  if (assigned_to === 'all') {
+    return Organogram.findAll({ where: { status: { [Op.not]: 'inactive' } } });
   }
+  // Map category back to level filter
+  const levelMap = {
+    BDM: { [Op.like]: '%BDM%' },
+    KAM: 'AM',
+    RM: 'RM',
+    ZM: 'ZM',
+  };
+  const levelCondition = levelMap[assigned_to];
+  if (!levelCondition) return [];
+  const whereLevel = typeof levelCondition === 'string'
+    ? { level: levelCondition }
+    : { level: levelCondition };
+  return Organogram.findAll({ where: { ...whereLevel, status: { [Op.not]: 'inactive' } } });
+}
 
-  const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
-  if (diffDays > 7) return 'upcoming';
-  if (diffDays >= 0) return 'remind';
-  return 'pending';
-};
-
-const createIfMissing = async (payload, where) => {
-  const existing = await EventAssignment.findOne({ where });
-  if (existing) return false;
-  await EventAssignment.create(payload);
-  return true;
-};
-
-const assignCurrentDueEvents = async (month, year, today = new Date()) => {
+// Generate assignments for a given month/year (idempotent)
+async function generateAssignmentsForPeriod(month, year) {
   const events = await Event.findAll({ where: { is_active: true } });
-  const users = await Organogram.findAll({
-    where: activeUserWhere(),
-    attributes: ['id', 'level', 'hq']
-  });
 
-  let created = 0;
   for (const event of events) {
-    if (!isEventDueInMonth(event, month, year)) continue;
+    if (!shouldEventFireInMonth(event, month, year)) continue;
 
-    const matchedUsers = users.filter(user => matchesAssignedTo(user, event.assigned_to));
-    for (const user of matchedUsers) {
-      const wasCreated = await createIfMissing({
-        field_user_id: user.id,
-        event_id: event.id,
-        month,
-        year,
-        status: statusForEvent(event, today),
-        is_carry_forward: false
-      }, {
-        field_user_id: user.id,
-        event_id: event.id,
-        month,
-        year,
-        is_carry_forward: false
+    const users = await getEligibleUsers(event.assigned_to);
+
+    for (const user of users) {
+      const existing = await EventAssignment.findOne({
+        where: {
+          event_id: event.id,
+          organogram_id: user.id,
+          period_month: month,
+          period_year: year,
+          is_carry_forward: false,
+        },
       });
-
-      if (wasCreated) created++;
+      if (!existing) {
+        await EventAssignment.create({
+          event_id: event.id,
+          organogram_id: user.id,
+          period_month: month,
+          period_year: year,
+          status: 'pending',
+          is_carry_forward: false,
+        });
+      }
     }
   }
+}
 
-  return created;
-};
+// Roll over pending assignments from previous month → new carry-forwards
+async function processCarryForwards(fromMonth, fromYear, options = {}) {
+  const { sendEmails = true } = options;
+  const toMonth = fromMonth === 12 ? 1 : fromMonth + 1;
+  const toYear = fromMonth === 12 ? fromYear + 1 : fromYear;
 
-const carryForwardPendingAssignments = async (month, year) => {
-  const prev = previousMonth(month, year);
-  const pendingAssignments = await EventAssignment.findAll({
+  // Find all pending/carry assignments from previous month that are NOT yearly
+  const pending = await EventAssignment.findAll({
     where: {
-      month: prev.month,
-      year: prev.year,
-      status: { [Op.ne]: 'done' }
+      period_month: fromMonth,
+      period_year: fromYear,
+      status: { [Op.in]: ['pending', 'carry'] },
     },
-    include: [{ model: Event, as: 'event', attributes: ['id', 'type'] }]
+    include: [
+      { model: Event, as: 'event', where: { frequency: { [Op.ne]: 'yearly' } } },
+      { model: Organogram, as: 'user' },
+    ],
   });
 
-  let carried = 0;
-  for (const assignment of pendingAssignments) {
-    if (!assignment.event || !CARRY_FORWARD_TYPES.includes(assignment.event.type)) continue;
-
-    const originalMonth = assignment.original_month || prev.month;
-    const originalYear = assignment.original_year || prev.year;
-    const wasCreated = await createIfMissing({
-      field_user_id: assignment.field_user_id,
-      event_id: assignment.event_id,
-      month,
-      year,
-      status: 'carry',
-      is_carry_forward: true,
-      original_month: originalMonth,
-      original_year: originalYear,
-      carry_count: (assignment.carry_count || 0) + 1
-    }, {
-      field_user_id: assignment.field_user_id,
-      event_id: assignment.event_id,
-      month,
-      year,
-      is_carry_forward: true,
-      original_month: originalMonth,
-      original_year: originalYear
+  for (const assignment of pending) {
+    // Check if carry-forward for this event+user already exists in new month
+    const alreadyExists = await EventAssignment.findOne({
+      where: {
+        event_id: assignment.event_id,
+        organogram_id: assignment.organogram_id,
+        period_month: toMonth,
+        period_year: toYear,
+        is_carry_forward: true,
+        carry_from_month: fromMonth,
+        carry_from_year: fromYear,
+      },
     });
 
-    if (wasCreated) carried++;
+    if (!alreadyExists) {
+      await EventAssignment.create({
+        event_id: assignment.event_id,
+        organogram_id: assignment.organogram_id,
+        period_month: toMonth,
+        period_year: toYear,
+        status: 'carry',
+        is_carry_forward: true,
+        carry_from_month: fromMonth,
+        carry_from_year: fromYear,
+      });
+
+      // Send carry-forward email
+      const user = assignment.user;
+      const event = assignment.event;
+      if (sendEmails && user?.emailid) {
+        const monthLabel = new Date(toYear, toMonth - 1, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+        await sendMail({
+          to: user.emailid,
+          subject: `[FieldTrack] Carry-Forward: ${event.name}`,
+          html: buildCarryForwardHtml(user.emp_name, event.name, monthLabel),
+        });
+      }
+    }
   }
-
-  return { checked: pendingAssignments.length, carried };
-};
-
-const ensureAssignmentsForMonth = async (month, year) => {
-  const today = new Date();
-  const currentCreated = await assignCurrentDueEvents(month, year, today);
-  const carry = await carryForwardPendingAssignments(month, year);
-
-  return {
-    month,
-    year,
-    current_assignments_created: currentCreated,
-    carry_forward_checked: carry.checked,
-    carry_forward_created: carry.carried
-  };
-};
+}
 
 module.exports = {
-  ACTIVE_STATUSES,
-  PERIODIC_TYPES,
-  activeUserWhere,
-  monthBounds,
-  previousMonth,
-  matchesAssignedTo,
-  getDueMonths,
-  isEventDueInMonth,
-  ensureAssignmentsForMonth
+  levelToCategory,
+  eventFiringMonths,
+  shouldEventFireInMonth,
+  getEligibleUsers,
+  generateAssignmentsForPeriod,
+  processCarryForwards,
 };

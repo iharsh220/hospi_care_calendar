@@ -1,97 +1,84 @@
 const jwt = require('jsonwebtoken');
+const { Organogram } = require('../models');
 const { Op } = require('sequelize');
-const { Admin, Organogram } = require('../models');
-const { ACTIVE_STATUSES } = require('../services/assignmentService');
 
-// Super-admin static credentials (no database lookup)
-const SUPER_ADMIN = {
-  username: 'admin',
-  password: 'admin'
-};
+function signToken(payload) {
+  return jwt.sign(payload, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  });
+}
 
-// POST /login
-// Handles both super-admin (static username+password) and field user (emailid+sap_code)
-const login = async (req, res) => {
+// POST /login — handles both admin and field user
+async function login(req, res) {
   try {
-    const { username, password, email, emailid, sap_code } = req.body;
-    const loginEmail = email || emailid;
+    const { username, password, email, sap_code } = req.body;
 
-    // ── Super Admin login (static credentials, no DB) ──
-    if (username && password) {
-      if (username !== SUPER_ADMIN.username || password !== SUPER_ADMIN.password) {
-        return res.status(401).json({ success: false, message: 'Invalid admin credentials' });
+    // ── Admin login ──
+    if (username !== undefined || (email === undefined && sap_code === undefined)) {
+      if (
+        username === process.env.ADMIN_USERNAME &&
+        password === process.env.ADMIN_PASSWORD
+      ) {
+        const token = signToken({ role: 'admin', id: 0 });
+        return res.json({
+          success: true,
+          role: 'admin',
+          token,
+          user: {
+            id: 0,
+            name: 'Admin',
+            username: 'admin',
+            avatar_initials: 'AD',
+          },
+        });
       }
-
-      const token = jwt.sign(
-        { id: 0, role: 'admin', username: SUPER_ADMIN.username, isSuperAdmin: true },
-        process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRES_IN }
-      );
-
-      return res.json({
-        success: true,
-        role: 'admin',
-        token,
-        user: {
-          id: 0,
-          name: 'Super Admin',
-          username: SUPER_ADMIN.username,
-          isSuperAdmin: true
-        }
-      });
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
     // ── Field user login (email + sap_code) ──
-    if (loginEmail && sap_code) {
-      const user = await Organogram.findOne({
-        where: { emailid: loginEmail, sap_code, status: { [Op.in]: ACTIVE_STATUSES } }
-      });
-      if (!user) {
-        return res.status(401).json({ success: false, message: 'Invalid credentials' });
-      }
-
-      const token = jwt.sign(
-        {
-          id: user.id,
-          role: 'field',
-          emailid: user.emailid,
-          level: user.level,
-          emp_code: user.emp_code
-        },
-        process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRES_IN }
-      );
-
-      return res.json({
-        success: true,
-        role: 'field',
-        token,
-        user: {
-          id: user.id,
-          emp_code: user.emp_code,
-          emp_name: user.emp_name,
-          emailid: user.emailid,
-          sap_code: user.sap_code,
-          level: user.level,
-          region: user.region,
-          division: user.division,
-          hq: user.hq,
-          mobileno: user.mobileno,
-          is_admin: user.is_admin,
-          initials: user.getInitials()
-        }
-      });
+    if (!email || !sap_code) {
+      return res.status(400).json({ success: false, message: 'Email and SAP code required' });
     }
 
-    return res.status(400).json({
-      success: false,
-      message: 'Provide (username + password) for admin or (email + sap_code) for field user'
+    const user = await Organogram.findOne({
+      where: {
+        emailid: { [Op.eq]: email.trim() },
+        sap_code: { [Op.eq]: sap_code.trim() },
+        status: { [Op.not]: 'inactive' },
+      },
     });
 
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+
+    const token = signToken({ role: 'field', id: user.id, sap_code: user.sap_code });
+
+    const nameParts = (user.emp_name || '').trim().split(' ');
+    const initials =
+      nameParts.length >= 2
+        ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
+        : (nameParts[0] || 'U').slice(0, 2).toUpperCase();
+
+    return res.json({
+      success: true,
+      role: 'field',
+      token,
+      user: {
+        id: user.id,
+        name: user.emp_name,
+        email: user.emailid,
+        sap_code: user.sap_code,
+        employee_id: user.emp_code,
+        region: user.region,
+        level: user.level,
+        avatar_initials: initials,
+      },
+    });
   } catch (err) {
-    console.error('Login error:', err);
+    console.error('[login]', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
-};
+}
 
 module.exports = { login };

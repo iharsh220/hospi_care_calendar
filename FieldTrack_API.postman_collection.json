@@ -1,0 +1,240 @@
+{
+  "info": {
+    "_postman_id": "fieldtrack-2025",
+    "name": "FieldTrack API",
+    "description": "FieldTrack – Hospital Care Calendar Automation. Base URL: {{base_url}}/hospitalcare/calendar/automation",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:12000", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "field_token", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login – Admin",
+          "event": [{ "listen": "test", "script": { "exec": ["var r=pm.response.json();if(r.token){pm.collectionVariables.set('token',r.token);console.log('Admin token set');}"], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/hospitalcare/calendar/automation/login",
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin\"\n}" }
+          }
+        },
+        {
+          "name": "Login – Field User",
+          "event": [{ "listen": "test", "script": { "exec": ["var r=pm.response.json();if(r.token){pm.collectionVariables.set('field_token',r.token);console.log('Field token set');}"], "type": "text/javascript" } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/hospitalcare/calendar/automation/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"ama.bdm.chandigarh@alembic.co.in\",\n  \"sap_code\": \"111367\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin – Dashboard & Calendar",
+      "item": [
+        {
+          "name": "Dashboard Summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/hospitalcare/calendar/automation/admin/dashboard?month=5&year=2025", "host": ["{{base_url}}"], "path": ["hospitalcare","calendar","automation","admin","dashboard"], "query": [{ "key": "month", "value": "5" }, { "key": "year", "value": "2025" }] }
+          }
+        },
+        {
+          "name": "Calendar View",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/hospitalcare/calendar/automation/admin/calendar?month=5&year=2025", "host": ["{{base_url}}"], "path": ["hospitalcare","calendar","automation","admin","calendar"], "query": [{ "key": "month", "value": "5" }, { "key": "year", "value": "2025" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin – Events",
+      "item": [
+        {
+          "name": "List All Events",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/hospitalcare/calendar/automation/admin/events"
+          }
+        },
+        {
+          "name": "Add Event – Monthly (All users)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/hospitalcare/calendar/automation/admin/events",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Safety Inspection\",\n  \"description\": \"Monthly safety check for all field users\",\n  \"type\": \"monthly\",\n  \"date\": null,\n  \"assigned_to\": \"all\",\n  \"seven_day_reminder\": false\n}" }
+          }
+        },
+        {
+          "name": "Add Event – Bi-Monthly (BDM only)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/hospitalcare/calendar/automation/admin/events",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"BDM Activity Report\",\n  \"description\": \"Bi-monthly activity submission for BDM level\",\n  \"type\": \"bi-monthly\",\n  \"date\": null,\n  \"assigned_to\": \"BDM\",\n  \"seven_day_reminder\": false\n}" }
+          }
+        },
+        {
+          "name": "Add Event – Quarterly (KAM only)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/hospitalcare/calendar/automation/admin/events",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"KAM Quarterly Review\",\n  \"description\": \"Quarterly review submission for KAM (AM level)\",\n  \"type\": \"quarterly\",\n  \"date\": null,\n  \"assigned_to\": \"KAM\",\n  \"seven_day_reminder\": false\n}" }
+          }
+        },
+        {
+          "name": "Add Event – Half-Yearly (RM)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/hospitalcare/calendar/automation/admin/events",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"RM Regional Report\",\n  \"description\": \"Half-yearly regional performance report for RMs\",\n  \"type\": \"half-yearly\",\n  \"date\": null,\n  \"assigned_to\": \"RM\",\n  \"seven_day_reminder\": false\n}" }
+          }
+        },
+        {
+          "name": "Add Event – Yearly / Specific Date (All)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/hospitalcare/calendar/automation/admin/events",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Annual Compliance Audit\",\n  \"description\": \"Mandatory yearly compliance audit for all field users\",\n  \"type\": \"yearly\",\n  \"date\": \"2025-12-15\",\n  \"assigned_to\": \"all\",\n  \"seven_day_reminder\": true\n}" }
+          }
+        },
+        {
+          "name": "Edit Event",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/hospitalcare/calendar/automation/admin/events/1",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Updated Safety Inspection\",\n  \"description\": \"Updated description\",\n  \"type\": \"monthly\",\n  \"date\": null,\n  \"assigned_to\": \"all\",\n  \"seven_day_reminder\": false\n}" }
+          }
+        },
+        {
+          "name": "Delete (Deactivate) Event",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/hospitalcare/calendar/automation/admin/events/1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin – Tracking & Users",
+      "item": [
+        {
+          "name": "Tracking – All Users",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/hospitalcare/calendar/automation/admin/tracking?month=5&year=2025&search=&filter=all&region=all", "host": ["{{base_url}}"], "path": ["hospitalcare","calendar","automation","admin","tracking"], "query": [{ "key": "month", "value": "5" }, { "key": "year", "value": "2025" }, { "key": "search", "value": "" }, { "key": "filter", "value": "all" }, { "key": "region", "value": "all" }] }
+          }
+        },
+        {
+          "name": "Tracking – Filter: Carry Forwards",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/hospitalcare/calendar/automation/admin/tracking?month=5&year=2025&filter=carry&region=all", "host": ["{{base_url}}"], "path": ["hospitalcare","calendar","automation","admin","tracking"], "query": [{ "key": "month", "value": "5" }, { "key": "year", "value": "2025" }, { "key": "filter", "value": "carry" }, { "key": "region", "value": "all" }] }
+          }
+        },
+        {
+          "name": "Incomplete / Overdue Users",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/hospitalcare/calendar/automation/admin/incomplete?month=5&year=2025&filter=all", "host": ["{{base_url}}"], "path": ["hospitalcare","calendar","automation","admin","incomplete"], "query": [{ "key": "month", "value": "5" }, { "key": "year", "value": "2025" }, { "key": "filter", "value": "all" }] }
+          }
+        },
+        {
+          "name": "Field Users Directory",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/hospitalcare/calendar/automation/admin/users?search=&region=all", "host": ["{{base_url}}"], "path": ["hospitalcare","calendar","automation","admin","users"], "query": [{ "key": "search", "value": "" }, { "key": "region", "value": "all" }] }
+          }
+        },
+        {
+          "name": "Add Field User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/hospitalcare/calendar/automation/admin/users",
+            "body": { "mode": "raw", "raw": "{\n  \"first_name\": \"Priya\",\n  \"last_name\": \"Nair\",\n  \"email\": \"priya.nair@company.com\",\n  \"sap_code\": \"111999\",\n  \"region\": \"North\",\n  \"employee_id\": \"EMP-201\",\n  \"mobile\": \"+91 99999 11111\",\n  \"level\": \"AM\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Field User",
+      "item": [
+        {
+          "name": "My Events (Current Month)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{field_token}}" }],
+            "url": { "raw": "{{base_url}}/hospitalcare/calendar/automation/field/my-events?month=5&year=2025", "host": ["{{base_url}}"], "path": ["hospitalcare","calendar","automation","field","my-events"], "query": [{ "key": "month", "value": "5" }, { "key": "year", "value": "2025" }] }
+          }
+        },
+        {
+          "name": "Submit Event Completion (with proof)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{field_token}}" }],
+            "url": "{{base_url}}/hospitalcare/calendar/automation/field/complete",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "event_id", "value": "1", "type": "text", "description": "Assignment ID from my-events response" },
+                { "key": "completed_on", "value": "2025-05-20", "type": "text" },
+                { "key": "notes", "value": "Completed successfully", "type": "text" },
+                { "key": "proof_image", "type": "file", "src": "", "description": "Upload JPG/PNG/PDF file" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "My History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{field_token}}" }],
+            "url": "{{base_url}}/hospitalcare/calendar/automation/field/my-history"
+          }
+        },
+        {
+          "name": "Team Tracking (ZM/RM/AM hierarchy view)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{field_token}}" }],
+            "url": { "raw": "{{base_url}}/hospitalcare/calendar/automation/field/team-tracking?month=5&year=2025", "host": ["{{base_url}}"], "path": ["hospitalcare","calendar","automation","field","team-tracking"], "query": [{ "key": "month", "value": "5" }, { "key": "year", "value": "2025" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/hospitalcare/calendar/automation/health"
+          }
+        }
+      ]
+    }
+  ]
+}

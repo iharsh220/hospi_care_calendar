@@ -1,42 +1,30 @@
-const express = require('express');
-const router = express.Router();
-const { requireAdmin } = require('../middlewares/auth');
+const { Router } = require('express');
+const { authenticate, requireAdmin } = require('../middleware/auth');
 const {
-  getDashboard,
-  getCalendar,
-  getEvents,
-  createEvent,
-  updateEvent,
-  getTracking,
-  getIncomplete,
-  getUsers,
-  createUser,
-  generateAssignments,
-  sendReminderJob
+  adminDashboard,
+  adminCalendar,
+  listEvents,
+  addEvent,
+  editEvent,
+  deleteEvent,
+  adminTracking,
+  adminIncomplete,
+  listUsers,
+  addUser,
 } = require('../controllers/adminController');
 
-// All admin routes require admin JWT
-router.use(requireAdmin);
+const router = Router();
+router.use(authenticate, requireAdmin);
 
-// Dashboard & Calendar
-router.get('/dashboard', getDashboard);      // #3
-router.get('/calendar', getCalendar);        // #4
-
-// Events management
-router.get('/events', getEvents);            // #5
-router.post('/events', createEvent);         // #6
-router.put('/events/:event_id', updateEvent); // #7
-
-// Tracking
-router.get('/tracking', getTracking);        // #8
-router.get('/incomplete', getIncomplete);    // #9
-
-// Field Users
-router.get('/users', getUsers);              // #10
-router.post('/users', createUser);           // #11
-
-// Jobs
-router.post('/jobs/generate-assignments', generateAssignments);
-router.post('/jobs/send-reminders', sendReminderJob);
+router.get('/dashboard', adminDashboard);
+router.get('/calendar', adminCalendar);
+router.get('/events', listEvents);
+router.post('/events', addEvent);
+router.put('/events/:event_id', editEvent);
+router.delete('/events/:event_id', deleteEvent);
+router.get('/tracking', adminTracking);
+router.get('/incomplete', adminIncomplete);
+router.get('/users', listUsers);
+router.post('/users', addUser);
 
 module.exports = router;

@@ -1,5 +1,5 @@
-require('dotenv').config();
 const { Sequelize } = require('sequelize');
+require('dotenv').config();
 
 const sequelize = new Sequelize(
   process.env.DB_NAME,
@@ -10,16 +10,24 @@ const sequelize = new Sequelize(
     port: process.env.DB_PORT || 3306,
     dialect: 'mysql',
     logging: false,
+
     pool: {
       max: 10,
       min: 0,
       acquire: 30000,
-      idle: 10000
+      idle: 10000,
     },
+
+    dialectOptions: {
+      connectTimeout: 60000,
+    },
+
     define: {
+      charset: 'utf8mb4',
+      collate: 'utf8mb4_unicode_ci',
       timestamps: true,
-      underscored: true
-    }
+      underscored: true,
+    },
   }
 );
 
