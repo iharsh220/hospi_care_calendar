@@ -22,6 +22,7 @@ async function login(req, res) {
         password === process.env.ADMIN_PASSWORD
       ) {
         const token = signToken({ role: 'admin', id: 0 });
+        console.log(token);
         return res.json({
           success: true,
           role: 'admin',
