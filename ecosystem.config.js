@@ -1,6 +1,6 @@
 module.exports = {
   apps: [{
-    name: 'hospitalcare || calendar_automation',
+    name: 'HospiCare || Calendar_Automation',
     script: './server.js',
     instances: 1,
     exec_mode: 'fork',
