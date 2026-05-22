@@ -41,19 +41,34 @@ async function getEligibleUsers(assigned_to) {
   if (assigned_to === 'all') {
     return Organogram.findAll({ where: { status: { [Op.not]: 'inactive' } } });
   }
-  // Map category back to level filter
+
+  // Handle comma-separated assigned_to values (e.g. "ZM,BDM")
+  const categories = assigned_to.split(',').map(cat => cat.trim());
+
+  // Map category to Organogram level filter
+  // KAM = AM level, BDM = any level containing "BDM", ZM = ZM, RM = RM
   const levelMap = {
     BDM: { [Op.like]: '%BDM%' },
     KAM: 'AM',
     RM: 'RM',
     ZM: 'ZM',
   };
-  const levelCondition = levelMap[assigned_to];
-  if (!levelCondition) return [];
-  const whereLevel = typeof levelCondition === 'string'
-    ? { level: levelCondition }
-    : { level: levelCondition };
-  return Organogram.findAll({ where: { ...whereLevel, status: { [Op.not]: 'inactive' } } });
+
+  // Build OR conditions for each category
+  const whereConditions = [];
+  for (const category of categories) {
+    const levelCondition = levelMap[category];
+    if (levelCondition) {
+      const whereLevel = typeof levelCondition === 'string'
+        ? { level: levelCondition }
+        : { level: levelCondition };
+      whereConditions.push({ ...whereLevel, status: { [Op.not]: 'inactive' } });
+    }
+  }
+
+  if (whereConditions.length === 0) return [];
+
+  return Organogram.findAll({ where: { [Op.or]: whereConditions } });
 }
 
 // Generate assignments for a given month/year (idempotent)

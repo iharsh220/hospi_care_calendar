@@ -1,6 +1,6 @@
 const { Op } = require('sequelize');
 const { sequelize, Organogram, Event, EventAssignment } = require('../models');
-const { shouldEventFireInMonth, generateAssignmentsForPeriod } = require('../services/assignmentService');
+const { shouldEventFireInMonth, generateAssignmentsForPeriod, getEligibleUsers } = require('../services/assignmentService');
 
 function monthLabel(month, year) {
   const names = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -156,12 +156,54 @@ async function listEvents(req, res) {
         date: e.event_date || null,
         seven_day_reminder: e.seven_day_reminder,
         assigned_to: e.assigned_to,
-        assigned_label: e.assigned_to === 'all' ? 'All users' : `All ${e.assigned_to} users`,
+        assigned_label: e.assigned_to === 'all' ? 'All users' : `All ${e.assigned_to.replace(/,/g, ', ')} users`,
       })),
     });
   } catch (err) {
     console.error('[listEvents]', err);
     res.status(500).json({ success: false, message: 'Server error' });
+  }
+}
+
+// Helper: sync assignments for an event in a given month/year
+// Removes old non-carry-forward assignments and creates new ones based on assigned_to
+async function syncAssignmentsForEvent(event, month, year) {
+  // Get all currently eligible users for this event's assigned_to
+  const eligibleUsers = await getEligibleUsers(event.assigned_to);
+  const eligibleUserIds = new Set(eligibleUsers.map(u => u.id));
+
+  // Find existing non-carry-forward assignments for this event+period
+  const existingAssignments = await EventAssignment.findAll({
+    where: {
+      event_id: event.id,
+      period_month: month,
+      period_year: year,
+      is_carry_forward: false,
+    },
+  });
+
+  // Remove assignments for users who are no longer eligible
+  const toRemove = existingAssignments.filter(a => !eligibleUserIds.has(a.organogram_id));
+  for (const a of toRemove) {
+    await a.destroy();
+  }
+
+  // Add assignments for newly eligible users who don't have one yet
+  const existingUserIds = new Set(
+    existingAssignments.filter(a => eligibleUserIds.has(a.organogram_id)).map(a => a.organogram_id)
+  );
+
+  for (const user of eligibleUsers) {
+    if (!existingUserIds.has(user.id)) {
+      await EventAssignment.create({
+        event_id: event.id,
+        organogram_id: user.id,
+        period_month: month,
+        period_year: year,
+        status: 'pending',
+        is_carry_forward: false,
+      });
+    }
   }
 }
 
@@ -180,20 +222,20 @@ async function addEvent(req, res) {
       description,
       frequency: type,
       event_date: type === 'yearly' ? date : null,
-      assigned_to: assigned_to || 'all',
+      assigned_to: assigned_to ? assigned_to.trim() : 'all',
       seven_day_reminder: !!seven_day_reminder,
     });
 
     // If recurring, generate assignments for current month immediately
     if (type !== 'yearly') {
       const now = new Date();
-      await generateAssignmentsForPeriod(now.getMonth() + 1, now.getFullYear());
+      await syncAssignmentsForEvent(event, now.getMonth() + 1, now.getFullYear());
     }
 
     return res.json({ success: true, message: 'Event created successfully', event_id: event.id });
   } catch (err) {
     console.error('[addEvent]', err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }
 }
 
@@ -204,19 +246,39 @@ async function editEvent(req, res) {
     if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
 
     const { name, description, type, date, assigned_to, seven_day_reminder } = req.body;
+    const oldAssignedTo = event.assigned_to;
+    const oldFrequency = event.frequency;
+
     await event.update({
       name: name || event.name,
       description: description !== undefined ? description : event.description,
       frequency: type || event.frequency,
       event_date: type === 'yearly' ? date : null,
-      assigned_to: assigned_to || event.assigned_to,
+      assigned_to: assigned_to ? assigned_to.trim() : event.assigned_to,
       seven_day_reminder: seven_day_reminder !== undefined ? !!seven_day_reminder : event.seven_day_reminder,
     });
+
+    // If recurring, sync assignments for current month
+    if (event.frequency !== 'yearly') {
+      const now = new Date();
+      const currentMonth = now.getMonth() + 1;
+      const currentYear = now.getFullYear();
+
+      // If assigned_to changed, sync assignments (remove old, add new)
+      if (assigned_to && assigned_to.trim() !== oldAssignedTo) {
+        await syncAssignmentsForEvent(event, currentMonth, currentYear);
+      }
+
+      // If frequency changed, regenerate all assignments for the period
+      if (type && type !== oldFrequency) {
+        await generateAssignmentsForPeriod(currentMonth, currentYear);
+      }
+    }
 
     return res.json({ success: true, message: 'Event updated successfully' });
   } catch (err) {
     console.error('[editEvent]', err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }
 }
 

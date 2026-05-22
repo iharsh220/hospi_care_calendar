@@ -2,7 +2,7 @@ const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
 // frequency: monthly | bi-monthly | quarterly | half-yearly | yearly
-// assigned_to: all | BDM | KAM | RM | ZM
+// assigned_to: all | BDM | KAM | RM | ZM (can be comma-separated for multiple)
 const Event = sequelize.define(
   'Event',
   {
@@ -14,7 +14,7 @@ const Event = sequelize.define(
       allowNull: false,
     },
     assigned_to: {
-      type: DataTypes.ENUM('all', 'BDM', 'KAM', 'RM', 'ZM'),
+      type: DataTypes.STRING(50),
       defaultValue: 'all',
     },
     // For yearly (one-time specific date events)
