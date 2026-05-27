@@ -504,6 +504,61 @@ async function addUser(req, res) {
   }
 }
 
+// GET /admin/user-events/:user_id
+async function getUserEvents(req, res) {
+  try {
+    const userId = req.params.user_id;
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'user_id is required' });
+    }
+
+    // Verify user exists and is active
+    const user = await Organogram.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    if (user.status === 'inactive') {
+      return res.status(400).json({ success: false, message: 'User is inactive' });
+    }
+
+    // Fetch all assignments for this user, include event details
+    const assignments = await EventAssignment.findAll({
+      where: { organogram_id: userId },
+      include: [{ model: Event, as: 'event' }],
+      order: [['created_at', 'DESC']],
+    });
+
+    // Format response
+    const eventList = assignments.map(a => ({
+      assignment_id: a.id,
+      event_id: a.event_id,
+      event_name: a.event?.name,
+      event_type: a.event?.frequency,
+      event_date: a.event?.event_date,
+      period_month: a.period_month,
+      period_year: a.period_year,
+      status: a.status,
+      is_carry_forward: a.is_carry_forward,
+      created_on: a.created_on,
+      updated_at: a.updated_at,
+      completed_on: a.completed_on,
+      completion_notes: a.completion_notes,
+      proof_image_url: a.proof_image_url,
+    }));
+
+    return res.json({
+      success: true,
+      user_id: userId,
+      user_name: user.emp_name,
+      total_events: eventList.length,
+      events: eventList,
+    });
+  } catch (err) {
+    console.error('[getUserEvents]', err);
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+}
+
 module.exports = {
   adminDashboard,
   adminCalendar,
@@ -515,4 +570,5 @@ module.exports = {
   adminIncomplete,
   listUsers,
   addUser,
+  getUserEvents
 };

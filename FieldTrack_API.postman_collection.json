@@ -168,16 +168,24 @@
           }
         },
         {
-          "name": "Add Field User",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
-            "url": "{{base_url}}/hospitalcare/calendar/automation/admin/users",
-            "body": { "mode": "raw", "raw": "{\n  \"first_name\": \"Priya\",\n  \"last_name\": \"Nair\",\n  \"email\": \"priya.nair@company.com\",\n  \"sap_code\": \"111999\",\n  \"region\": \"North\",\n  \"employee_id\": \"EMP-201\",\n  \"mobile\": \"+91 99999 11111\",\n  \"level\": \"AM\"\n}" }
-          }
+        "name": "Add Field User",
+        "request": {
+          "method": "POST",
+          "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+          "url": "{{base_url}}/hospitalcare/calendar/automation/admin/users",
+          "body": { "mode": "raw", "raw": "{\n  \"first_name\": \"Priya\",\n  \"last_name\": \"Nair\",\n  \"email\": \"priya.nair@company.com\",\n  \"sap_code\": \"111999\",\n  \"region\": \"North\",\n  \"employee_id\": \"EMP-201\",\n  \"mobile\": \"+91 99999 11111\",\n  \"level\": \"AM\"\n}" }
         }
-      ]
-    },
+      },
+      {
+        "name": "Get User Events",
+        "request": {
+          "method": "GET",
+          "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+          "url": "{{base_url}}/hospitalcare/calendar/automation/admin/user-events/1"
+        }
+      }
+    ]
+  },
     {
       "name": "Field User",
       "item": [

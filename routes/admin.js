@@ -11,6 +11,7 @@ const {
   adminIncomplete,
   listUsers,
   addUser,
+  getUserEvents,
 } = require('../controllers/adminController');
 
 const router = Router();
@@ -26,5 +27,6 @@ router.get('/tracking', adminTracking);
 router.get('/incomplete', adminIncomplete);
 router.get('/users', listUsers);
 router.post('/users', addUser);
+router.get('/user-events/:user_id', getUserEvents);
 
 module.exports = router;
